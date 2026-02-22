@@ -1,0 +1,299 @@
+FORENSIC ANALYSIS PLATFORM - PROJECT STRUCTURE
+═══════════════════════════════════════════════════════════════════════════════════
+
+D:\Forensics Application\
+│
+├── 🎨 FRONTEND (React + TypeScript + Tailwind)
+│   ├── 📁 src/
+│   │   ├── 📁 components/
+│   │   │   ├── 📁 ui/                          ← shadcn components
+│   │   │   │   └── halide-topo-hero.tsx        │ Example component
+│   │   │   │
+│   │   │   └── 📁 forensics/                   ← Custom forensics components
+│   │   │       ├── forensic-analysis-hero.tsx  │ Landing page with 3D parallax
+│   │   │       ├── forensic-file-upload.tsx    │ Upload interface
+│   │   │       ├── forensic-analysis-dashboard.tsx  │ Progress tracking
+│   │   │       └── forensic-report-viewer.tsx  │ Results & export
+│   │   │
+│   │   ├── 📁 lib/
+│   │   │   └── utils.ts                        ← Utilities (cn, etc.)
+│   │   │
+│   │   ├── App.tsx                             ← Main application
+│   │   ├── main.tsx                            ← React entry point
+│   │   └── index.css                           ← Global styles
+│   │
+│   ├── 📄 index.html                           ← HTML template
+│   ├── 📄 package.json                         ← Dependencies
+│   ├── 📄 package-lock.json                    ← Lock file (auto-generated)
+│   ├── 📄 tsconfig.json                        ← TypeScript config
+│   ├── 📄 tsconfig.node.json                   ← TypeScript Node config
+│   ├── 📄 vite.config.ts                       ← Build tool config
+│   ├── 📄 tailwind.config.js                   ← Tailwind CSS config
+│   └── 📄 postcss.config.js                    ← PostCSS config
+│
+├── 🐍 BACKEND (Python + Flask - Existing)
+│   ├── forensic_web_app.py                     ← Main Flask app
+│   ├── forensic_pipeline_advanced.py           ← Analysis engine
+│   ├── forensic_pipeline.py
+│   ├── forensic_pipeline_demo.py
+│   ├── requirements_web.txt                     ← Python dependencies
+│   ├── 📁 .venv/                               ← Python virtual environment
+│   ├── 📁 templates/                           ← Old Flask templates
+│   ├── 📁 uploads/                             ← File uploads
+│   └── 📁 analysis_output/                     ← Analysis results
+│
+├── 📚 DOCUMENTATION (New)
+│   ├── START_HERE.txt                          ← Quick start guide
+│   ├── REACT_FRONTEND_SETUP.txt                ← Frontend setup
+│   ├── FLASK_REACT_INTEGRATION.txt             ← Backend integration
+│   ├── COMPONENT_STRUCTURE_GUIDE.txt           ← Architecture guide
+│   └── INTEGRATION_COMPLETE.txt                ← Full summary
+│
+├── 📋 PROJECT FILES
+│   ├── ADVANCED_FEATURES.txt
+│   ├── E01_SETUP_GUIDE.txt
+│   ├── EXECUTION_SUMMARY.txt
+│   ├── FRONTEND_FEATURE_SUMMARY.txt
+│   ├── INSTALLATION_NOTE.txt
+│   ├── PIPELINE_EXPLANATION.txt
+│   ├── WEB_APP_SETUP.txt
+│   ├── forensic_extensions.txt
+│   ├── forensic_report.json
+│   ├── forensic_report_advanced.json
+│   ├── forensic_summary.txt
+│   ├── forensic_summary_advanced.txt
+│   ├── forensic_timeline.txt
+│   ├── sample_forensic_report.json
+│   └── sample_forensic_summary.txt
+│
+└── 🗂️ BUILD OUTPUT (Generated after npm run build)
+    └── 📁 dist/                                ← Production build
+        ├── index.html
+        ├── assets/
+        └── (minified bundles)
+
+
+TECH STACK
+═══════════════════════════════════════════════════════════════════════════════════
+
+Frontend Dependencies:
+  • react@18.2.0 - UI library
+  • react-dom@18.2.0 - DOM rendering
+  • typescript@5.2.2 - Type safety
+  • tailwindcss@3.3.6 - CSS framework
+  • clsx@2.0.0 - Class utility
+  • tailwind-merge@2.2.1 - Class merging
+
+Backend (Existing):
+  • Python 3.8+
+  • Flask - Web framework
+  • python-docx - DOCX generation
+  • reportlab - PDF generation
+
+Build Tools:
+  • vite@5.0.8 - Build tool
+  • @vitejs/plugin-react@4.2.1 - React support
+  • autoprefixer@10.4.16 - CSS prefixes
+  • postcss@8.4.31 - CSS processing
+
+
+COMPONENTS
+═══════════════════════════════════════════════════════════════════════════════════
+
+Landing Page Component
+├─ ForensicAnalysisHero
+   ├─ 3D parallax background
+   ├─ Mouse tracking
+   ├─ Film grain overlay
+   └─ Call-to-action button
+
+Upload Component
+├─ ForensicFileUpload
+   ├─ File input validation
+   ├─ Progress tracking
+   ├─ Error handling
+   └─ API integration
+
+Analysis Dashboard
+├─ ForensicAnalysisDashboard
+   ├─ File upload listener
+   ├─ Status polling
+   ├─ Progress visualization
+   ├─ Analysis history
+   └─ Summary statistics
+
+Report Viewer
+├─ ForensicReportViewer
+   ├─ Summary view
+   ├─ Timeline view
+   ├─ File breakdown
+   ├─ PDF export
+   └─ DOCX export
+
+
+DATA FLOW
+═════════════════════════════════════════════════════════════════════════════════════
+
+1. USER OPENS APP
+   └─ http://localhost:5173
+   └─ ForensicAnalysisHero renders
+
+2. USER CLICKS "BEGIN ANALYSIS"
+   └─ App state changes
+   └─ Shows ForensicFileUpload
+
+3. USER UPLOADS FILE
+   └─ ForensicFileUpload uploads to /api/upload
+   └─ Backend receives file
+   └─ Analysis starts
+
+4. ANALYSIS STARTS
+   └─ ForensicAnalysisDashboard receives event
+   └─ Creates analysis record
+   └─ Starts polling /api/analysis/<id>/status
+
+5. ANALYSIS RUNNING
+   └─ Dashboard shows progress bar
+   └─ Polls every 2 seconds
+   └─ Updates progress percentage
+
+6. ANALYSIS COMPLETE
+   └─ Status changes to "completed"
+   └─ Dashboard fetches final report
+   └─ Shows summary and statistics
+
+7. USER EXPORTS REPORT
+   └─ Calls /api/analysis/<id>/export/pdf or docx
+   └─ File downloads to computer
+
+
+API ENDPOINTS
+═════════════════════════════════════════════════════════════════════════════════════
+
+From React to Flask:
+
+POST /api/upload
+    ├─ Request: FormData with 'file'
+    └─ Response: { fileName, analysisId, status }
+
+GET /api/analysis/<id>/status
+    ├─ Response: { progress, status, summary }
+    └─ Called every 2 seconds during analysis
+
+GET /api/analysis/<id>/report
+    ├─ Response: { summary, filesByType, timeline }
+    └─ Called when analysis completes
+
+GET /api/analysis/<id>/export/pdf
+    ├─ Response: PDF binary file
+    └─ User clicks "Export as PDF"
+
+GET /api/analysis/<id>/export/docx
+    ├─ Response: DOCX binary file
+    └─ User clicks "Export as DOCX"
+
+
+COMMANDS REFERENCE
+═════════════════════════════════════════════════════════════════════════════════════
+
+Development:
+  npm install              Install dependencies
+  npm run dev              Start dev server (port 5173)
+  npm run build            Build for production
+  npm run preview          Preview production build
+  npm run lint             Check code quality
+
+Components:
+  npx shadcn-ui@latest add      Interactive component selector
+  npx shadcn-ui@latest add button    Add Button component
+  npx shadcn-ui@latest add card      Add Card component
+
+
+PORTS & URLS
+═════════════════════════════════════════════════════════════════════════════════════
+
+React Frontend
+  ├─ URL: http://localhost:5173
+  ├─ Port: 5173
+  └─ Tool: Vite dev server
+
+Flask Backend
+  ├─ URL: http://localhost:5000
+  ├─ Port: Port: 5000
+  └─ Tool: Flask development server
+
+
+FEATURES
+═════════════════════════════════════════════════════════════════════════════════════
+
+✓ Modern React 18 with Hooks
+✓ Full TypeScript type safety
+✓ Tailwind CSS styling
+✓ shadcn/ui component library
+✓ 3D parallax animations
+✓ Real-time progress tracking
+✓ File upload validation
+✓ Report export (PDF/DOCX)
+✓ Analysis history
+✓ Responsive design
+✓ Dark theme (forensic style)
+✓ API proxy configuration
+✓ Production-ready build
+
+
+FILE SIZES (After npm install)
+═════════════════════════════════════════════════════════════════════════════════════
+
+node_modules/               ~800 MB (not committed to git)
+src/                        ~50 KB
+dist/ (after build)         ~200 KB (minified + gzipped)
+
+
+HOW TO USE
+═════════════════════════════════════════════════════════════════════════════════════
+
+First Time:
+  1. npm install
+  2. npm run dev
+  3. Open http://localhost:5173
+
+Development:
+  1. npm run dev (keeps running)
+  2. Edit files in src/
+  3. Changes auto-reload in browser
+
+Adding Features:
+  1. Create files in src/components/forensics/
+  2. Import in App.tsx or other components
+  3. Use Tailwind classes for styling
+
+Building:
+  1. npm run build
+  2. Output in dist/ folder
+  3. Deploy dist/ folder
+
+
+NEXT STEPS
+═════════════════════════════════════════════════════════════════════════════════════
+
+Immediate:
+  1. Install Node.js
+  2. Run npm install
+  3. Run npm run dev
+
+This Week:
+  1. Test file uploads
+  2. Test backend integration
+  3. Test report exports
+
+Coming Soon:
+  1. Add authentication
+  2. Add user dashboard
+  3. Deploy to production
+
+
+═════════════════════════════════════════════════════════════════════════════════════
+For detailed setup: See START_HERE.txt
+For full guide: See REACT_FRONTEND_SETUP.txt
+For backend setup: See FLASK_REACT_INTEGRATION.txt
+═════════════════════════════════════════════════════════════════════════════════════

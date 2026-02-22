@@ -1,0 +1,288 @@
+{
+    "forensic_report": {
+        "image_path": "C:\\forensics\\image.raw",
+        "scan_timestamp": "2026-02-21 14:32:18",
+        "partition_info": {
+            "filesystem_type": "NTFS",
+            "block_size": 4096,
+            "block_count": 263626752
+        },
+        "summary": {
+            "total_partitions": 1,
+            "total_files": 13,
+            "total_deleted_files": 1,
+            "suspicious_files_count": 8,
+            "encrypted_items_count": 1,
+            "network_artifacts_count": 1
+        },
+        "file_extension_statistics": {
+            ".ini": 1,
+            ".exe": 2,
+            "(no extension)": 2,
+            ".sys": 2,
+            ".tmp": 1,
+            ".dll": 2,
+            ".ps1": 1,
+            ".bat": 1,
+            ".img": 1
+        },
+        "files": {
+            "5_system.ini": {
+                "name": "system.ini",
+                "path": "/Windows/system.ini",
+                "size": 2048,
+                "inode": 5,
+                "creation_time": "2020-01-15 10:30:00",
+                "modification_time": "2022-06-20 14:15:00",
+                "access_time": "2023-11-30 09:45:00",
+                "is_deleted": false,
+                "is_directory": false
+            },
+            "42_explorer.exe": {
+                "name": "explorer.exe",
+                "path": "/Windows/explorer.exe",
+                "size": 4563392,
+                "inode": 42,
+                "creation_time": "2020-01-15 10:28:00",
+                "modification_time": "2024-08-10 13:22:15",
+                "access_time": "2026-02-21 08:15:30",
+                "is_deleted": false,
+                "is_directory": false
+            },
+            "128_Desktop": {
+                "name": "Desktop",
+                "path": "/Users/Admin/Desktop",
+                "size": 0,
+                "inode": 128,
+                "creation_time": "2022-03-15 12:00:00",
+                "modification_time": "2026-02-15 16:45:22",
+                "access_time": "2026-02-21 09:30:00",
+                "is_deleted": false,
+                "is_directory": true
+            },
+            "256_malware.exe": {
+                "name": "malware.exe",
+                "path": "/Users/Admin/Downloads/malware.exe",
+                "size": 2048576,
+                "inode": 256,
+                "creation_time": "2025-10-15 22:45:00",
+                "modification_time": "2025-10-15 22:45:00",
+                "access_time": "2025-10-16 08:15:30",
+                "is_deleted": false,
+                "is_directory": false
+            },
+            "512_hiberfil.sys": {
+                "name": "hiberfil.sys",
+                "path": "/hiberfil.sys",
+                "size": 4294967296,
+                "inode": 512,
+                "creation_time": "2020-01-15 10:25:00",
+                "modification_time": "2026-02-21 04:30:00",
+                "access_time": "2026-02-21 04:30:00",
+                "is_deleted": false,
+                "is_directory": false
+            },
+            "1024_pagefile.sys": {
+                "name": "pagefile.sys",
+                "path": "/pagefile.sys",
+                "size": 2147483648,
+                "inode": 1024,
+                "creation_time": "2020-01-15 10:26:00",
+                "modification_time": "2026-02-21 14:20:00",
+                "access_time": "2026-02-21 14:20:00",
+                "is_deleted": false,
+                "is_directory": false
+            },
+            "2048_deleted_file.tmp": {
+                "name": "deleted_file.tmp",
+                "path": "/Users/Admin/AppData/Local/Temp/deleted_file.tmp",
+                "size": 524288,
+                "inode": 2048,
+                "creation_time": "2025-12-10 15:30:00",
+                "modification_time": "2025-12-15 10:45:00",
+                "access_time": "2025-12-20 14:30:00",
+                "is_deleted": true,
+                "is_directory": false
+            },
+            "4096_ransomware.dll": {
+                "name": "ransomware.dll",
+                "path": "/Windows/System32/drivers/ransomware.dll",
+                "size": 1048576,
+                "inode": 4096,
+                "creation_time": "2025-11-22 03:15:00",
+                "modification_time": "2025-11-22 03:15:00",
+                "access_time": "2025-11-23 09:00:00",
+                "is_deleted": false,
+                "is_directory": false
+            },
+            "8192_script.ps1": {
+                "name": "script.ps1",
+                "path": "/Users/Admin/Documents/script.ps1",
+                "size": 8192,
+                "inode": 8192,
+                "creation_time": "2025-12-01 18:30:00",
+                "modification_time": "2025-12-05 20:15:00",
+                "access_time": "2025-12-10 08:45:00",
+                "is_deleted": false,
+                "is_directory": false
+            },
+            "16384_batch_file.bat": {
+                "name": "batch_file.bat",
+                "path": "/Startup/batch_file.bat",
+                "size": 2048,
+                "inode": 16384,
+                "creation_time": "2025-11-15 14:20:00",
+                "modification_time": "2025-11-20 09:30:00",
+                "access_time": "2026-02-15 10:15:00",
+                "is_deleted": false,
+                "is_directory": false
+            },
+            "32768_ntdll.dll": {
+                "name": "ntdll.dll",
+                "path": "/Windows/System32/ntdll.dll",
+                "size": 2105344,
+                "inode": 32768,
+                "creation_time": "2020-01-15 10:28:00",
+                "modification_time": "2024-06-18 11:45:00",
+                "access_time": "2026-02-21 09:10:00",
+                "is_deleted": false,
+                "is_directory": false
+            },
+            "65536_hosts": {
+                "name": "hosts",
+                "path": "/Windows/System32/drivers/etc/hosts",
+                "size": 825,
+                "inode": 65536,
+                "creation_time": "2020-01-15 10:30:00",
+                "modification_time": "2025-11-10 22:15:00",
+                "access_time": "2026-02-20 15:30:00",
+                "is_deleted": false,
+                "is_directory": false
+            },
+            "131072_encrypted.img": {
+                "name": "encrypted.img",
+                "path": "/Users/Admin/Documents/encrypted.img",
+                "size": 10737418240,
+                "inode": 131072,
+                "creation_time": "2025-09-01 14:30:00",
+                "modification_time": "2026-02-01 10:45:00",
+                "access_time": "2026-02-15 16:20:00",
+                "is_deleted": false,
+                "is_directory": false
+            }
+        },
+        "file_hashes": {
+            "5_system.ini": "f035662e002d87e5",
+            "42_explorer.exe": "fff8c34fe4db7d38",
+            "128_Desktop": "dd20c7cf6f653837",
+            "256_malware.exe": "80d683557785fe07",
+            "512_hiberfil.sys": "8017eb24eb540282",
+            "1024_pagefile.sys": "a0ce8b7fc90e33c7",
+            "2048_deleted_file.tmp": "1c002211cf027877",
+            "4096_ransomware.dll": "5d3b518690b2d5e6",
+            "8192_script.ps1": "91b4b3265c058076",
+            "16384_batch_file.bat": "0b1d2c392dfe3000",
+            "32768_ntdll.dll": "2a5d883dd7818d43",
+            "65536_hosts": "3aa180af4cfbd7ad",
+            "131072_encrypted.img": "5057e357b1f809ce"
+        },
+        "encrypted_items": [
+            {
+                "name": "encrypted.img",
+                "path": "/Users/Admin/Documents/encrypted.img",
+                "type": "encrypted_archive",
+                "size": 10737418240,
+                "modified": "2026-02-01 10:45:00"
+            }
+        ],
+        "network_artifacts": [
+            {
+                "name": "hosts",
+                "path": "/Windows/System32/drivers/etc/hosts",
+                "type": "network_artifact",
+                "size": 825,
+                "modified": "2025-11-10 22:15:00"
+            }
+        ],
+        "timeline_events": [
+            {
+                "timestamp": "2026-02-21 14:20:00",
+                "event_type": "modification",
+                "file": "/pagefile.sys",
+                "size": 2147483648
+            },
+            {
+                "timestamp": "2026-02-21 04:30:00",
+                "event_type": "modification",
+                "file": "/hiberfil.sys",
+                "size": 4294967296
+            },
+            {
+                "timestamp": "2026-02-15 16:45:22",
+                "event_type": "modification",
+                "file": "/Users/Admin/Desktop",
+                "size": 0
+            },
+            {
+                "timestamp": "2026-02-01 10:45:00",
+                "event_type": "modification",
+                "file": "/Users/Admin/Documents/encrypted.img",
+                "size": 10737418240
+            },
+            {
+                "timestamp": "2025-12-15 10:45:00",
+                "event_type": "modification",
+                "file": "/Users/Admin/AppData/Local/Temp/deleted_file.tmp",
+                "size": 524288
+            },
+            {
+                "timestamp": "2025-12-05 20:15:00",
+                "event_type": "modification",
+                "file": "/Users/Admin/Documents/script.ps1",
+                "size": 8192
+            },
+            {
+                "timestamp": "2025-11-22 03:15:00",
+                "event_type": "modification",
+                "file": "/Windows/System32/drivers/ransomware.dll",
+                "size": 1048576
+            },
+            {
+                "timestamp": "2025-11-20 09:30:00",
+                "event_type": "modification",
+                "file": "/Startup/batch_file.bat",
+                "size": 2048
+            },
+            {
+                "timestamp": "2025-11-10 22:15:00",
+                "event_type": "modification",
+                "file": "/Windows/System32/drivers/etc/hosts",
+                "size": 825
+            },
+            {
+                "timestamp": "2025-10-15 22:45:00",
+                "event_type": "modification",
+                "file": "/Users/Admin/Downloads/malware.exe",
+                "size": 2048576
+            },
+            {
+                "timestamp": "2024-08-10 13:22:15",
+                "event_type": "modification",
+                "file": "/Windows/explorer.exe",
+                "size": 4563392
+            },
+            {
+                "timestamp": "2024-06-18 11:45:00",
+                "event_type": "modification",
+                "file": "/Windows/System32/ntdll.dll",
+                "size": 2105344
+            },
+            {
+                "timestamp": "2022-06-20 14:15:00",
+                "event_type": "modification",
+                "file": "/Windows/system.ini",
+                "size": 2048
+            }
+        ]
+    }
+}

@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Forensic Analysis Platform - Advanced Disk Investigation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #00E5FF;
+            --primary-dark: #00BCD4;
+            --secondary: #FF4081;
+            --success: #4CAF50;
+            --warning: #FF9800;
+            --danger: #FF5252;
+            --dark: #0a0e27;
+            --darker: #050812;
+            --light: #f0f4f9;
+            --text: #e0e6ed;
+            --text-muted: #a8adb5;
+            --card-bg: rgba(15, 22, 45, 0.6);
+            --card-bg-light: rgba(0, 229, 255, 0.05);
+            --border: rgba(0, 229, 255, 0.2);
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Courier New', 'Courier', monospace;
+            background: linear-gradient(135deg, var(--darker) 0%, #1a1f3a 50%, var(--darker) 100%);
+            color: var(--text);
+            overflow-x: hidden;
+            min-height: 100vh;
+            position: relative;
+        }
+        
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(0, 229, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 64, 129, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+            animation: gradient-shift 15s ease infinite;
+        }
+        
+        @keyframes gradient-shift {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        /* Glassmorphism effect */
+        .glass {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 60px;
+            animation: fadeInDown 0.8s ease;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .tagline {
+            color: var(--text-muted);
+            font-size: 0.95em;
+            margin-top: 10px;
+            letter-spacing: 2px;
+        }
+        
+        /* Main grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .card {
+            glass;
+            border-radius: 15px;
+            padding: 40px;
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.8s ease;
+        }
+        
+        .card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 8px 32px rgba(0, 229, 255, 0.1);
+            transform: translateY(-5px);
+        }
+        
+        .card h2 {
+            color: var(--primary);
+            margin-bottom: 25px;
+            font-size: 1.8em;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .card h3 {
+            color: var(--primary-dark);
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        
+        /* Form elements */
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 10px;
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 0.95em;
+            letter-spacing: 1px;
+        }
+        
+        input[type="text"],
+        input[type="file"],
+        select {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(0, 229, 255, 0.05);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+            transition: all 0.3s ease;
+        }
+        
+        input[type="text"]:focus,
+        input[type="file"]:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(0, 229, 255, 0.1);
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.2);
+        }
+        
+        input::placeholder {
+            color: var(--text-muted);
+        }
+        
+        /* Buttons */
+        .button {
+            padding: 14px 32px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            transition: left 0.3s ease;
+            z-index: -1;
+        }
+        
+        .button:hover::before {
+            left: 100%;
+        }
+        
+        .button-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: var(--darker);
+        }
+        
+        .button-primary:hover {
+            box-shadow: 0 8px 24px rgba(0, 229, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .button-secondary {
+            background: transparent;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+        
+        .button-secondary:hover {
+            background: rgba(0, 229, 255, 0.1);
+        }
+        
+        .button-success {
+            background: linear-gradient(135deg, var(--success), #45a049);
+            color: white;
+        }
+        
+        .button-success:hover {
+            box-shadow: 0 8px 24px rgba(76, 175, 80, 0.3);
+        }
+        
+        .button-danger {
+            background: linear-gradient(135deg, var(--danger), #ff4081);
+            color: white;
+        }
+        
+        .button-danger:hover {
+            box-shadow: 0 8px 24px rgba(255, 82, 82, 0.3);
+        }
+        
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        
+        /* Progress section */
+        .progress-section {
+            glass;
+            border-radius: 15px;
+            padding: 40px;
+            margin-bottom: 30px;
+            animation: fadeInUp 0.8s ease 0.2s both;
+            display: none;
+        }
+        
+        .progress-section.active {
+            display: block;
+        }
+        
+        .progress-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .progress-icon {
+            font-size: 2em;
+            animation: spin 2s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .progress-info h3 {
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+        
+        .progress-info p {
+            color: var(--text-muted);
+            font-size: 0.9em;
+        }
+        
+        /* Progress bar */
+        .progress-bar {
+            height: 8px;
+            background: var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+            width: 0%;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
+        }
+        
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9em;
+            color: var(--text-muted);
+            margin-bottom: 15px;
+        }
+        
+        .status-message {
+            color: var(--primary);
+            text-align: center;
+            font-size: 1.1em;
+            margin: 20px 0;
+            min-height: 30px;
+        }
+        
+        /* Results section */
+        .results-section {
+            glass;
+            border-radius: 15px;
+            padding: 40px;
+            display: none;
+            animation: fadeInUp 0.8s ease 0.3s both;
+        }
+        
+        .results-section.active {
+            display: block;
+        }
+        
+        .results-header {
+            margin-bottom: 30px;
+        }
+        
+        .results-header h2 {
+            color: var(--success);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            glass;
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid var(--primary);
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.9em;
+            letter-spacing: 1px;
+        }
+        
+        .export-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 30px 0;
+        }
+        
+        .export-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 15px;
+            }
+            
+            .card {
+                padding: 25px;
+            }
+            
+            .logo {
+                font-size: 1.8em;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .export-options {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Loading animation */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 229, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s linear infinite;
+        }
+        
+        /* Alert messages */
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .alert.show {
+            display: block;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .alert-error {
+            background: rgba(255, 82, 82, 0.1);
+            border-left: 4px solid var(--danger);
+            color: #ff8a80;
+        }
+        
+        .alert-success {
+            background: rgba(76, 175, 80, 0.1);
+            border-left: 4px solid var(--success);
+            color: #81c784;
+        }
+        
+        /* Details table */
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .details-table th {
+            background: rgba(0, 229, 255, 0.1);
+            color: var(--primary);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--border);
+        }
+        
+        .details-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .details-table tbody tr:hover {
+            background: rgba(0, 229, 255, 0.05);
+        }
+        
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+            color: var(--primary);
+        }
+        
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            background-color: rgba(10, 22, 45, 0.95);
+            color: var(--text);
+            text-align: center;
+            padding: 8px 12px;
+            border-radius: 6px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -60px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.85em;
+            border: 1px solid var(--border);
+            white-space: nowrap;
+        }
+        
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="logo">
+                🔍 FORENSIC ANALYSIS PLATFORM
+            </div>
+            <p class="tagline">Advanced Digital Forensics Investigation System</p>
+        </header>
+        
+        <!-- Main Content -->
+        <div class="main-grid">
+            <!-- Input Section -->
+            <div class="card">
+                <h2>📥 DISK IMAGE INPUT</h2>
+                
+                <div id="alertContainer"></div>
+                
+                <div class="form-group">
+                    <label for="imagePath">
+                        Disk Image Path
+                        <span class="tooltip">
+                            ❓
+                            <span class="tooltip-text">Enter full path to RAW, DD, E01, or ISO image file</span>
+                        </span>
+                    </label>
+                    <input 
+                        type="text" 
+                        id="imagePath" 
+                        placeholder="C:\forensics\disk_image.raw"
+                        value="C:\forensics\image.raw"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="imageType">Image Format</label>
+                    <select id="imageType">
+                        <option value="raw">RAW (.raw)</option>
+                        <option value="dd">DD Format (.dd)</option>
+                        <option value="e01">Encase Format (.E01)</option>
+                        <option value="iso">ISO Image (.iso)</option>
+                        <option value="auto">Auto-detect</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Export Format</label>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; margin-bottom: 0;">
+                            <input type="checkbox" id="exportPdf" checked> PDF Report
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; margin-bottom: 0;">
+                            <input type="checkbox" id="exportDoc" checked> Word Document
+                        </label>
+                    </div>
+                </div>
+                
+                <h3>🚀 Analysis Controls</h3>
+                
+                <div class="button-group">
+                    <button class="button button-primary" id="startBtn" onclick="startAnalysis()">
+                        ▶ START ANALYSIS
+                    </button>
+                    <button class="button button-secondary" id="resetBtn" onclick="resetAnalysis()" style="display: none;">
+                        ⟳ NEW ANALYSIS
+                    </button>
+                </div>
+                
+                <h3>ℹ️ Instructions</h3>
+                <div style="color: var(--text-muted); font-size: 0.9em; line-height: 1.8;">
+                    <p>1. Enter the full path to your disk image file</p>
+                    <p>2. Select the image format (or auto-detect)</p>
+                    <p>3. Choose export formats (PDF and/or DOC)</p>
+                    <p>4. Click "START ANALYSIS" to begin</p>
+                    <p>5. Wait for completion (~2-30 min depending on disk size)</p>
+                    <p>6. Download your forensic report</p>
+                </div>
+            </div>
+            
+            <!-- Status Section -->
+            <div class="card">
+                <h2>📊 ANALYSIS STATUS</h2>
+                
+                <div id="statusContainer" style="text-align: center; padding: 40px 0;">
+                    <div style="font-size: 3em; margin-bottom: 20px;">⏳</div>
+                    <p style="color: var(--text-muted); font-size: 1.1em;">Ready to start analysis</p>
+                    <p style="color: var(--text-muted); font-size: 0.9em; margin-top: 10px;">Select disk image and click START ANALYSIS</p>
+                </div>
+                
+                <div id="progressContainer" style="display: none;">
+                    <div class="progress-header">
+                        <div class="progress-icon">⚙️</div>
+                        <div class="progress-info">
+                            <h3 id="statusTitle">Initializing Analysis</h3>
+                            <p id="statusMessage">Preparing forensic scanner...</p>
+                        </div>
+                    </div>
+                    
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                    </div>
+                    
+                    <div class="progress-text">
+                        <span id="progressLabel">0%</span>
+                        <span id="progressTime">--:--</span>
+                    </div>
+                    
+                    <div class="status-message" id="statusDetail">Starting analysis...</div>
+                </div>
+                
+                <h3 style="margin-top: 30px;">📋 System Specifications</h3>
+                <div style="font-size: 0.9em; color: var(--text-muted); line-height: 2;">
+                    <div>• Supported Formats: RAW, DD, E01, ISO, IMG</div>
+                    <div>• Max File Size: Unlimited (memory-efficient)</div>
+                    <div>• Filesystem: NTFS, ext4, FAT32, HFS+</div>
+                    <div>• Hash Algorithm: SHA256</div>
+                    <div>• Export Formats: JSON, PDF, DOCX, TXT</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Progress Section -->
+        <div class="progress-section" id="progressSection">
+            <div class="progress-header">
+                <div class="spinner"></div>
+                <div class="progress-info">
+                    <h3>Analysis in Progress</h3>
+                    <p id="globalStatusMessage">Analyzing disk image...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Results Section -->
+        <div class="results-section" id="resultsSection">
+            <div class="results-header">
+                <h2>✅ ANALYSIS COMPLETE</h2>
+                <p style="color: var(--text-muted); margin-top: 10px;">Your forensic analysis is ready for download</p>
+            </div>
+            
+            <div class="stats-grid" id="statsGrid">
+                <!-- Populated dynamically -->
+            </div>
+            
+            <h3>📥 EXPORT REPORTS</h3>
+            <div class="export-options">
+                <button class="button button-success export-btn" onclick="downloadReport('pdf')" id="pdfBtn" style="display: none;">
+                    📄 Download PDF Report
+                </button>
+                <button class="button button-success export-btn" onclick="downloadReport('doc')" id="docBtn" style="display: none;">
+                    📝 Download Word Document
+                </button>
+            </div>
+            
+            <h3 style="margin-top: 30px;">📈 FILE STATISTICS</h3>
+            <table class="details-table" id="detailsTable">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody id="detailsBody">
+                    <!-- Populated dynamically -->
+                </tbody>
+            </table>
+            
+            <button class="button button-secondary" onclick="resetAnalysis()" style="margin-top: 30px; width: 100%;">
+                ⟳ START NEW ANALYSIS
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        // Configuration
+        const API_BASE = 'http://localhost:5000/api';
+        const POLL_INTERVAL = 500; // 500ms
+        const POLL_TIMEOUT = 3600000; // 1 hour max
+        
+        let pollingInterval = null;
+        let startTime = null;
+        let exportOptions = {};
+        
+        // Show alert
+        function showAlert(message, type = 'error') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} show`;
+            alertDiv.innerHTML = `
+                <strong>${type === 'error' ? '❌ Error' : '✅ Success'}:</strong> ${message}
+            `;
+            
+            const container = document.getElementById('alertContainer');
+            container.innerHTML = '';
+            container.appendChild(alertDiv);
+            
+            if (type === 'success') {
+                setTimeout(() => alertDiv.remove(), 5000);
+            }
+        }
+        
+        // Start analysis
+        function startAnalysis() {
+            const imagePath = document.getElementById('imagePath').value.trim();
+            
+            if (!imagePath) {
+                showAlert('Please enter a disk image path', 'error');
+                return;
+            }
+            
+            // Store export options
+            exportOptions = {
+                pdf: document.getElementById('exportPdf').checked,
+                doc: document.getElementById('exportDoc').checked
+            };
+            
+            if (!exportOptions.pdf && !exportOptions.doc) {
+                showAlert('Please select at least one export format', 'error');
+                return;
+            }
+            
+            // Update UI
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('progressContainer').style.display = 'block';
+            document.getElementById('statusContainer').style.display = 'none';
+            document.getElementById('progressSection').classList.add('active');
+            document.getElementById('resultsSection').classList.remove('active');
+            
+            startTime = Date.now();
+            
+            // Make API call
+            fetch(`${API_BASE}/analyze`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image_path: imagePath })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('Analysis started successfully!', 'success');
+                    startPolling();
+                } else {
+                    showAlert(data.error || 'Failed to start analysis', 'error');
+                    resetUI();
+                }
+            })
+            .catch(err => {
+                showAlert('Connection error: ' + err.message, 'error');
+                resetUI();
+            });
+        }
+        
+        // Poll for status
+        function startPolling() {
+            pollingInterval = setInterval(updateStatus, POLL_INTERVAL);
+        }
+        
+        function updateStatus() {
+            fetch(`${API_BASE}/status`)
+                .then(r => r.json())
+                .then(data => {
+                    updateUI(data);
+                    
+                    if (data.status === 'completed' || data.status === 'error') {
+                        clearInterval(pollingInterval);
+                        pollingInterval = null;
+                        
+                        if (data.status === 'completed') {
+                            showAlert('Analysis completed successfully!', 'success');
+                            showResults();
+                        } else {
+                            showAlert('Analysis failed: ' + data.message, 'error');
+                            resetUI();
+                        }
+                    }
+                })
+                .catch(err => console.error('Poll error:', err));
+        }
+        
+        function updateUI(data) {
+            const progressFill = document.getElementById('progressFill');
+            const progressLabel = document.getElementById('progressLabel');
+            const statusDetail = document.getElementById('statusDetail');
+            const globalStatusMessage = document.getElementById('globalStatusMessage');
+            
+            progressFill.style.width = data.progress + '%';
+            progressLabel.textContent = data.progress + '%';
+            statusDetail.textContent = data.message;
+            globalStatusMessage.textContent = data.message;
+            
+            // Calculate elapsed time
+            if (startTime) {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('progressTime').textContent = 
+                    `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+        
+        function showResults() {
+            console.log('Showing results...');
+            
+            fetch(`${API_BASE}/results`)
+                .then(r => r.json())
+                .then(data => {
+                    // Display stats
+                    const statsGrid = document.getElementById('statsGrid');
+                    statsGrid.innerHTML = `
+                        <div class="stat-card">
+                            <div class="stat-label">Total Files</div>
+                            <div class="stat-value">${data.summary.total_files.toLocaleString()}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Suspicious Files</div>
+                            <div class="stat-value" style="color: var(--danger);">${data.summary.suspicious_files_count}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Deleted Files</div>
+                            <div class="stat-value" style="color: var(--warning);">${data.summary.total_deleted_files}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Encrypted Items</div>
+                            <div class="stat-value" style="color: var(--secondary);">${data.summary.encrypted_items_count}</div>
+                        </div>
+                    `;
+                    
+                    // Display details
+                    const detailsBody = document.getElementById('detailsBody');
+                    detailsBody.innerHTML = `
+                        <tr>
+                            <td>Total Partitions</td>
+                            <td>${data.summary.total_partitions}</td>
+                        </tr>
+                        <tr>
+                            <td>Total Files</td>
+                            <td>${data.summary.total_files.toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                            <td>Deleted Files</td>
+                            <td>${data.summary.total_deleted_files}</td>
+                        </tr>
+                        <tr>
+                            <td>Suspicious Files</td>
+                            <td>${data.summary.suspicious_files_count}</td>
+                        </tr>
+                        <tr>
+                            <td>Encrypted Items</td>
+                            <td>${data.summary.encrypted_items_count}</td>
+                        </tr>
+                        <tr>
+                            <td>Network Artifacts</td>
+                            <td>${data.summary.network_artifacts_count}</td>
+                        </tr>
+                        <tr>
+                            <td>Image Path</td>
+                            <td style="word-break: break-all;">${data.image_path}</td>
+                        </tr>
+                        <tr>
+                            <td>Analysis Timestamp</td>
+                            <td>${data.timestamp}</td>
+                        </tr>
+                    `;
+                    
+                    // Show export buttons
+                    if (exportOptions.pdf) {
+                        document.getElementById('pdfBtn').style.display = 'flex';
+                    }
+                    if (exportOptions.doc) {
+                        document.getElementById('docBtn').style.display = 'flex';
+                    }
+                    
+                    // Hide progress, show results
+                    document.getElementById('progressSection').classList.remove('active');
+                    document.getElementById('resultsSection').classList.add('active');
+                    document.getElementById('progressContainer').style.display = 'none';
+                    document.getElementById('statusContainer').style.display = 'none';
+                    document.getElementById('startBtn').style.display = 'none';
+                    document.getElementById('resetBtn').style.display = 'inline-flex';
+                })
+                .catch(err => {
+                    showAlert('Failed to load results: ' + err.message, 'error');
+                });
+        }
+        
+        function downloadReport(format) {
+            const filename = `forensic_report_${new Date().getTime()}.${format === 'pdf' ? 'pdf' : 'docx'}`;
+            
+            fetch(`${API_BASE}/export/${format}`)
+                .then(r => {
+                    if (!r.ok) throw new Error('Download failed');
+                    return r.blob();
+                })
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    a.remove();
+                    showAlert(`${format.toUpperCase()} report downloaded!`, 'success');
+                })
+                .catch(err => showAlert('Download failed: ' + err.message, 'error'));
+        }
+        
+        function resetAnalysis() {
+            fetch(`${API_BASE}/reset`)
+                .then(() => resetUI());
+        }
+        
+        function resetUI() {
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('startBtn').style.display = 'inline-flex';
+            document.getElementById('resetBtn').style.display = 'none';
+            document.getElementById('progressContainer').style.display = 'none';
+            document.getElementById('statusContainer').style.display = 'block';
+            document.getElementById('progressSection').classList.remove('active');
+            document.getElementById('resultsSection').classList.remove('active');
+            document.getElementById('alertContainer').innerHTML = '';
+            document.getElementById('pdfBtn').style.display = 'none';
+            document.getElementById('docBtn').style.display = 'none';
+            
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+        }
+    </script>
+</body>
+</html>

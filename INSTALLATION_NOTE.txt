@@ -1,0 +1,76 @@
+================================================================================
+PYTSK3 INSTALLATION ISSUE & SOLUTION
+================================================================================
+
+PROBLEM: 
+  When running: pip install pytsk3
+  Error: "Microsoft Visual C++ 14.0 or greater is required"
+
+CAUSE:
+  pytsk3 is a Python binding for The Sleuth Kit C library. It needs to be 
+  compiled from source on Windows, which requires a C++ compiler.
+
+SOLUTIONS:
+
+Option 1: Install Microsoft C++ Build Tools (Recommended)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1: Download from:
+  https://visualstudio.microsoft.com/downloads/
+  
+  Scroll to "All Downloads" → Visual Studio 2022 → Tools for Visual Studio 2022
+  Download: "Visual Studio Build Tools 2022"
+
+Step 2: Run the installer
+
+Step 3: Select "Desktop development with C++" workload
+
+Step 4: Install (this is ~10GB, takes 15-30 minutes)
+
+Step 5: After installation, try again:
+  pip install pytsk3
+
+This will compile pytsk3 successfully.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Option 2: Use Pre-built Wheel (If Available)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Some projects provide pre-built wheels for Windows:
+
+1. Check here for Windows wheels:
+   https://github.com/py-forensics/pytsk3/releases
+
+2. Download the appropriate .whl file:
+   pytsk3-20250801-cp313-cp313-win_amd64.whl (for Python 3.13 64-bit)
+
+3. Install it:
+   pip install path\to\pytsk3-20250801-cp313-cp313-win_amd64.whl
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Option 3: Use Docker (If Windows Toolchain Unavailable)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Run the script in a Linux Docker container where compilation is easier:
+
+1. Install Docker Desktop for Windows
+2. Create Dockerfile with pytsk3 pre-installed
+3. Run analysis in container
+
+This eliminates the build tools requirement.
+
+================================================================================
+
+FOR NOW: Creating a Demo Output File
+================================================================================
+
+To show you what the script would produce, I'm creating sample output files
+that demonstrate the expected format.
+
+Check these files in D:\Forensics Application:
+  1. sample_forensic_report.json - Complete file metadata
+  2. sample_forensic_summary.txt - Human-readable summary
+
+These show exactly what your real analysis would output once pytsk3 is installed.

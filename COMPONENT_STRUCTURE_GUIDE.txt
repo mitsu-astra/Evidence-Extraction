@@ -1,0 +1,418 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                ║
+║                        COMPONENT STRUCTURE & ARCHITECTURE                     ║
+║                                                                                ║
+║              Why /components/ui is the shadcn Standard & How to Use            ║
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+1. WHY /components/ui IS CRITICAL FOR shadcn
+═══════════════════════════════════════════════════════════════════════════════════
+
+shadcn/ui is NOT a package manager - it's a CLI tool that copies component code 
+directly into your project. The /components/ui folder is the standard location 
+because:
+
+✓ Consistency: All shadcn projects use this path
+✓ Direct Control: You own and maintain the source code
+✓ Customization: Modify components without breaking dependencies
+✓ Tree-shaking: Unused code is eliminated in production builds
+✓ IDE Support: Import paths are predictable and autocomplete-friendly
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+2. CURRENT PROJECT STRUCTURE
+═══════════════════════════════════════════════════════════════════════════════════
+
+Your project is organized as follows:
+
+src/
+├── components/
+│   ├── ui/                              ← shadcn components go here
+│   │   └── halide-topo-hero.tsx        ← Example component
+│   │
+│   └── forensics/                       ← Your custom forensics components
+│       ├── forensic-analysis-hero.tsx    ← Landing page (3D parallax)
+│       ├── forensic-file-upload.tsx      ← Upload interface
+│       ├── forensic-analysis-dashboard.tsx ← Real-time dashboard
+│       └── forensic-report-viewer.tsx    ← Report display
+│
+├── lib/
+│   └── utils.ts                        ← Utility functions
+│
+├── App.tsx                             ← Main application component
+├── main.tsx                            ← React entry point
+└── index.css                           ← Global styles
+
+
+WHAT GOES WHERE:
+
+/components/ui/
+  • shadcn components (Button, Card, Dialog, etc.)
+  • Do NOT modify unless absolutely necessary
+  • Regenerate with: npx shadcn-ui@latest add [component-name]
+
+/components/forensics/
+  • Your custom components specific to forensics
+  • Forensic-themed UI components
+  • Business logic integration
+  • This is where you extend the application
+
+/lib/utils.ts
+  • Helper functions like cn() for styling
+  • Custom hooks and utilities
+  • Shared constants
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+3. SHADCN BEST PRACTICES
+═══════════════════════════════════════════════════════════════════════════════════
+
+RULE 1: Keep shadcn Components Unmodified
+────────────────────────────────────────
+Don't modify files in /components/ui unless you're extending base shadcn.
+Instead, create wrapper components in /components/forensics/:
+
+❌ BAD: Modify Button in /components/ui/button.tsx
+✓ GOOD: Create /components/forensics/forensic-button.tsx that uses Button
+
+Example wrapper component:
+
+  // src/components/forensics/forensic-button.tsx
+  import { Button } from '@/components/ui/button';
+  import { cn } from '@/lib/utils';
+  
+  interface ForensicButtonProps {
+    children: React.ReactNode;
+    onClick?: () => void;
+    variant?: 'default' | 'analysis' | 'delete';
+  }
+  
+  export const ForensicButton: React.FC<ForensicButtonProps> = ({
+    children,
+    variant = 'default',
+    onClick,
+  }) => {
+    const variantStyles = {
+      default: 'bg-orange-600 hover:bg-orange-700',
+      analysis: 'bg-blue-600 hover:bg-blue-700',
+      delete: 'bg-red-600 hover:bg-red-700',
+    };
+  
+    return (
+      <Button 
+        onClick={onClick}
+        className={cn(variantStyles[variant])}
+      >
+        {children}
+      </Button>
+    );
+  };
+
+
+RULE 2: Always Use Path Aliases
+───────────────────────────────
+Use @/ alias for all imports instead of relative paths:
+
+❌ BAD: import { cn } from '../../../lib/utils'
+✓ GOOD: import { cn } from '@/lib/utils'
+
+The @ alias is configured in tsconfig.json:
+
+  "paths": {
+    "@/*": ["./src/*"]
+  }
+
+
+RULE 3: Organize by Feature, Not by Type
+───────────────────────────────────────
+Don't do: components/buttons/, components/cards/, components/dialogs/
+Do this: components/forensics/upload/, components/forensics/analysis/
+
+Better structure:
+
+  src/components/
+  ├── ui/                      ← shadcn base components
+  ├── forensics/
+  │   ├── upload/
+  │   │   ├── file-upload.tsx
+  │   │   ├── upload-progress.tsx
+  │   │   └── upload-history.tsx
+  │   ├── analysis/
+  │   │   ├── dashboard.tsx
+  │   │   ├── status-card.tsx
+  │   │   └── results-panel.tsx
+  │   └── common/
+  │       ├── header.tsx
+  │       ├── sidebar.tsx
+  │       └── footer.tsx
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+4. ADDING SHADCN COMPONENTS
+═══════════════════════════════════════════════════════════════════════════════════
+
+The CLI automatically handles installation:
+
+npx shadcn-ui@latest add
+
+Available components:
+  • button
+  • card
+  • dialog
+  • dropdown-menu
+  • form
+  • input
+  • label
+  • modal
+  • select
+  • textarea
+  • toggle
+  • tooltip
+  ... and many more
+
+Examples:
+
+# Add individual components
+npx shadcn-ui@latest add button
+npx shadcn-ui@latest add card
+npx shadcn-ui@latest add input
+
+# Add multiple at once
+npx shadcn-ui@latest add button card form input
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+5. COMPONENT LIFECYCLE IN YOUR PROJECT
+═══════════════════════════════════════════════════════════════════════════════════
+
+How components work together:
+
+1. USER INTERACTION
+   └─ App.tsx renders ForensicAnalysisHero
+
+2. USER CLICKS "BEGIN ANALYSIS"
+   └─ App.tsx shows ForensicFileUpload
+
+3. USER UPLOADS FILE
+   └─ ForensicFileUpload → fetch POST /api/upload
+   └─ Dispatches 'fileUploaded' event
+
+4. EVENT TRIGGERED
+   └─ ForensicAnalysisDashboard listens
+   └─ Creates analysis record
+   └─ Starts polling /api/analysis/{id}/status
+
+5. ANALYSIS IN PROGRESS
+   └─ Dashboard shows progress bar
+   └─ Polls every 2 seconds for updates
+
+6. ANALYSIS COMPLETE
+   └─ Dashboard fetches /api/analysis/{id}/report
+   └─ Displays summary statistics
+
+7. USER EXPORTS REPORT
+   └─ ForensicReportViewer exports PDF/DOCX
+   └─ Fetches /api/analysis/{id}/export/{format}
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+6. TYPESCRIPT COMPONENT TEMPLATE
+═══════════════════════════════════════════════════════════════════════════════════
+
+Use this template for all new components:
+
+```typescript
+import React from 'react';
+import { cn } from '@/lib/utils';
+
+interface ComponentProps {
+  /** Required prop description */
+  required: string;
+  
+  /** Optional prop description */
+  optional?: boolean;
+  
+  /** Callback function */
+  onEvent?: (data: any) => void;
+}
+
+/**
+ * ComponentName
+ * 
+ * Description of what this component does
+ * 
+ * @param props Component configuration
+ * @returns Rendered component
+ * 
+ * @example
+ * <ComponentName required="value" optional />
+ */
+export const ComponentName: React.FC<ComponentProps> = ({
+  required,
+  optional = false,
+  onEvent,
+}) => {
+  const [state, setState] = React.useState('');
+
+  const handleAction = () => {
+    onEvent?.(state);
+  };
+
+  return (
+    <div className={cn('flex items-center gap-4')}>
+      {/* Component JSX */}
+    </div>
+  );
+};
+
+export default ComponentName;
+```
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+7. STYLING WITH TAILWIND + SHADCN
+═══════════════════════════════════════════════════════════════════════════════════
+
+shadcn components use Tailwind CSS classes. Combine with cn() for dynamic styles:
+
+```typescript
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+
+interface MyButtonProps {
+  isActive: boolean;
+  size: 'sm' | 'lg';
+}
+
+export const MyButton: React.FC<MyButtonProps> = ({ isActive, size }) => {
+  return (
+    <Button
+      className={cn(
+        'transition-colors',
+        isActive && 'bg-orange-500',
+        !isActive && 'bg-gray-500',
+        size === 'sm' && 'px-2 py-1',
+        size === 'lg' && 'px-6 py-3',
+      )}
+    >
+      Click me
+    </Button>
+  );
+};
+```
+
+Customizing shadcn components:
+  • Extend in tailwind.config.js
+  • Use CSS variables (recommended)
+  • Create wrapper components
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+8. FORENSIC-SPECIFIC STYLING GUIDE
+═══════════════════════════════════════════════════════════════════════════════════
+
+Your project has forensic theme colors:
+
+Tailwind Config (tailwind.config.js):
+  
+  --forensic-dark: #0a0a0a      (Dark background)
+  --forensic-accent: #ff3c00    (Orange accent)
+  --forensic-silver: #e0e0e0    (Light text)
+
+Usage in Components:
+
+  <div className="bg-forensic-dark text-forensic-silver border-forensic-accent">
+    Forensic content
+  </div>
+
+For dynamic colors, use inline styles or CSS variables:
+
+  <div style={{ 
+    backgroundColor: 'var(--forensic-dark)',
+    borderColor: 'var(--forensic-accent)'
+  }}>
+    Content
+  </div>
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+9. CURRENT FORENSICS COMPONENTS
+═══════════════════════════════════════════════════════════════════════════════════
+
+ForensicAnalysisHero
+  File: src/components/forensics/forensic-analysis-hero.tsx
+  Purpose: Landing page with 3D parallax
+  Key Features:
+    • Mouse tracking for 3D rotation
+    • Animated entrance animation
+    • Film grain effect
+    • Call-to-action button
+  Dependencies: React hooks (useEffect, useRef)
+
+ForensicFileUpload
+  File: src/components/forensics/forensic-file-upload.tsx
+  Purpose: Upload interface for evidence files
+  Key Features:
+    • File type validation (raw, dd, e01, img, iso, bin, dmg)
+    • Progress tracking
+    • Error handling
+    • API integration with /api/upload
+  Dependencies: React hooks, fetch API
+
+ForensicAnalysisDashboard
+  File: src/components/forensics/forensic-analysis-dashboard.tsx
+  Purpose: Real-time analysis progress display
+  Key Features:
+    • File upload event listener
+    • Status polling (2-second intervals)
+    • Progress visualization
+    • Analysis history
+  Dependencies: React hooks, fetch API
+
+ForensicReportViewer
+  File: src/components/forensics/forensic-report-viewer.tsx
+  Purpose: Display and export analysis results
+  Key Features:
+    • Tabbed interface (Summary, Timeline, Files)
+    • PDF export
+    • DOCX export
+    • Statistics display
+  Dependencies: React hooks, fetch API
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+10. EXTENDING THE COMPONENTS
+═══════════════════════════════════════════════════════════════════════════════════
+
+To add new forensic components:
+
+STEP 1: Create component file
+  ~/src/components/forensics/new-component.tsx
+
+STEP 2: Use the template from section 6
+
+STEP 3: Import and use in App.tsx or other components
+
+STEP 4: Style with Tailwind classes
+
+STEP 5: Integrate with API endpoints
+
+Example: Adding a Timeline Viewer
+
+  src/components/forensics/timeline-viewer.tsx
+  
+  export const TimelineViewer: React.FC<TimelineViewerProps> = (props) => {
+    // Implementation
+  };
+
+Then in App.tsx:
+  
+  import TimelineViewer from '@/components/forensics/timeline-viewer';
+  
+  <TimelineViewer analysisId={currentAnalysisId} />
+
+
+═══════════════════════════════════════════════════════════════════════════════════

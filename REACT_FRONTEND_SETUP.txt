@@ -1,0 +1,303 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                ║
+║                      REACT FORENSIC PLATFORM - SETUP GUIDE                    ║
+║                                                                                ║
+║                    Frontend: React 18 + TypeScript + Tailwind                  ║
+║                    Backend: Flask + Python (Existing)                          ║
+║                    Created: February 21, 2026                                  ║
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+1. PREREQUISITES
+═══════════════════════════════════════════════════════════════════════════════════
+
+Before starting, ensure you have:
+
+✓ Node.js 18.0+ (https://nodejs.org/)
+✓ npm 9.0+ (comes with Node.js)
+✓ Git (optional, for version control)
+✓ Python 3.8+ (for the Flask backend - should already be installed)
+✓ Visual Studio Code (recommended for development)
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+2. VERIFYING INSTALLATION
+═══════════════════════════════════════════════════════════════════════════════════
+
+Open PowerShell and verify tools are installed:
+
+  node --version     # Should show v18.0.0 or higher
+  npm --version      # Should show 9.0.0 or higher
+  npx --version      # Should show 9.0.0 or higher
+
+If not installed, download Node.js from https://nodejs.org/
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+3. QUICK START (React Frontend)
+═══════════════════════════════════════════════════════════════════════════════════
+
+STEP 1: Navigate to Project
+───────────────────────────
+cd "D:\Forensics Application"
+
+STEP 2: Install Dependencies
+─────────────────────────────
+npm install
+
+This will:
+  • Download React, TypeScript, Vite, Tailwind CSS, and all dependencies
+  • Create node_modules/ folder (may take 2-5 minutes)
+  • Generate lock file (package-lock.json)
+
+STEP 3: Start Development Server
+────────────────────────────────
+npm run dev
+
+Expected output:
+  VITE v5.0.8  ready in 123 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  press h to show help
+
+STEP 4: Open in Browser
+──────────────────────
+Visit: http://localhost:5173/
+
+You should see the Forensic Analysis Hero landing page with:
+  • 3D parallax background
+  • "EVIDENCE EXTRACTION" title
+  • "BEGIN ANALYSIS" button
+  • Animated film grain effect
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+4. RUNNING BOTH FRONTEND & BACKEND
+═══════════════════════════════════════════════════════════════════════════════════
+
+You need TWO terminal windows running in parallel:
+
+TERMINAL 1 - React Frontend
+──────────────────────────
+cd "D:\Forensics Application"
+npm run dev
+
+The frontend will run at: http://localhost:5173
+
+TERMINAL 2 - Flask Backend
+──────────────────────────
+cd "D:\Forensics Application"
+.\.venv\Scripts\Activate.ps1
+python forensic_web_app.py
+
+The backend will run at: http://localhost:5000
+
+The React frontend is configured to proxy API requests to the Flask backend.
+See vite.config.ts for proxy configuration.
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+5. PROJECT STRUCTURE
+═══════════════════════════════════════════════════════════════════════════════════
+
+D:\Forensics Application/
+├── src/
+│   ├── components/
+│   │   ├── ui/                          # shadcn UI components
+│   │   │   └── halide-topo-hero.tsx    # Basic example component
+│   │   └── forensics/                   # Forensics-specific components
+│   │       ├── forensic-analysis-hero.tsx       # Landing page hero
+│   │       ├── forensic-file-upload.tsx         # File upload interface
+│   │       ├── forensic-analysis-dashboard.tsx  # Real-time analysis status
+│   │       └── forensic-report-viewer.tsx       # Report display & export
+│   ├── lib/
+│   │   └── utils.ts                    # Utility functions (cn, etc.)
+│   ├── App.tsx                         # Main app component
+│   ├── main.tsx                        # React entry point
+│   └── index.css                       # Global styles
+├── public/                             # Static assets
+├── index.html                          # HTML entry point
+├── package.json                        # Dependencies
+├── tsconfig.json                       # TypeScript configuration
+├── tailwind.config.js                  # Tailwind CSS configuration
+├── postcss.config.js                   # PostCSS configuration
+├── vite.config.ts                      # Vite build configuration
+│
+├── forensic_web_app.py                 # Flask backend (existing)
+├── forensic_pipeline_advanced.py       # Analysis engine (existing)
+└── templates/                          # Old Flask templates (can be removed)
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+6. KEY COMPONENTS EXPLAINED
+═══════════════════════════════════════════════════════════════════════════════════
+
+📦 ForensicAnalysisHero
+   Location: src/components/forensics/forensic-analysis-hero.tsx
+   Purpose: Landing page with 3D parallax effect
+   Features: 
+     • Mouse-tracking 3D rotation
+     • Animated entrance
+     • Film grain texture
+     • Call-to-action button
+
+📦 ForensicFileUpload
+   Location: src/components/forensics/forensic-file-upload.tsx
+   Purpose: Upload disk images and evidence files
+   Features:
+     • Drag-and-drop support (can be added)
+     • File type validation
+     • Upload progress tracking
+     • Error handling
+
+📦 ForensicAnalysisDashboard
+   Location: src/components/forensics/forensic-analysis-dashboard.tsx
+   Purpose: Real-time analysis progress display
+   Features:
+     • Live progress polling
+     • Analysis history
+     • Summary statistics
+     • Status indicators
+
+📦 ForensicReportViewer
+   Location: src/components/forensics/forensic-report-viewer.tsx
+   Purpose: Display and export analysis results
+   Features:
+     • Summary, timeline, and file views
+     • PDF export
+     • DOCX export
+     • File type breakdown
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+7. BUILDING FOR PRODUCTION
+═══════════════════════════════════════════════════════════════════════════════════
+
+When ready to deploy:
+
+npm run build
+
+This will:
+  • Generate optimized production build
+  • Output to dist/ folder
+  • Minify and bundle all assets
+  • Ready for deployment
+
+Output will be in: D:\Forensics Application\dist\
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+8. CONFIGURING TAILWIND CSS & SHADCN
+═══════════════════════════════════════════════════════════════════════════════════
+
+Default Configuration:
+  ✓ Colors: Tailwind default + forensic custom colors
+  ✓ Components: Ready for shadcn components
+  ✓ Path alias: @ = src/
+
+Custom Colors Already Configured:
+  --forensic-dark: #0a0a0a
+  --forensic-accent: #ff3c00 (orange)
+  --forensic-silver: #e0e0e0
+
+Adding More shadcn Components:
+
+  npx shadcn-ui@latest add
+
+Then select components like:
+  • Button
+  • Card
+  • Dialog
+  • Input
+  • Select
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+9. API INTEGRATION
+═══════════════════════════════════════════════════════════════════════════════════
+
+The React frontend communicates with Flask backend via these endpoints:
+
+POST /api/upload
+  Upload a forensic image file
+  Request: FormData with 'file' field
+  Response: { fileName, fileId, status }
+
+GET /api/analysis/{id}/status
+  Get current analysis status
+  Response: { progress, status, summary }
+
+GET /api/analysis/{id}/report
+  Get complete analysis report
+  Response: { summary, filesByType, timeline }
+
+GET /api/analysis/{id}/export/pdf
+  Export report as PDF
+  Response: PDF binary data
+
+GET /api/analysis/{id}/export/docx
+  Export report as DOCX
+  Response: DOCX binary data
+
+Proxy Configuration:
+  ~/vite.config.ts - Configured to forward /api/* requests to Flask
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+10. TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════════════════
+
+Issue: "npm: command not found"
+  Solution: Install Node.js from https://nodejs.org/
+  
+Issue: "vite: Module not found"
+  Solution: Run 'npm install' to install dependencies
+  
+Issue: "Cannot find module '@/lib/utils'"
+  Solution: Check tsconfig.json has correct path aliases
+  
+Issue: Tailwind styles not applying
+  Solution: Ensure src/index.css is imported in main.tsx
+  
+Issue: API requests to backend fail
+  Solution: 
+    1. Ensure Flask backend is running on port 5000
+    2. Check CORS configuration in forensic_web_app.py
+    3. Verify vite.config.ts proxy settings
+
+Issue: "Port 5173 already in use"
+  Solution: Run: npm run dev -- --port 5174
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+11. RESOURCES
+═══════════════════════════════════════════════════════════════════════════════════
+
+Documentation:
+  • React: https://react.dev
+  • TypeScript: https://www.typescriptlang.org/docs
+  • Tailwind CSS: https://tailwindcss.com/docs
+  • shadcn/ui: https://ui.shadcn.com
+  • Vite: https://vitejs.dev
+
+Community:
+  • React Discord: https://discord.gg/react
+  • Tailwind Discord: https://discord.gg/tailwindcss
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+12. NEXT STEPS
+═══════════════════════════════════════════════════════════════════════════════════
+
+1. ✓ Install Node.js (if not already installed)
+2. ✓ Run: npm install
+3. ✓ Run: npm run dev
+4. ✓ Open: http://localhost:5173
+5. ✓ Start Flask backend in another terminal
+6. Add more shadcn components as needed
+7. Customize components for your needs
+8. Deploy to production
+
+═══════════════════════════════════════════════════════════════════════════════════

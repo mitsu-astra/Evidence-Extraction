@@ -1,0 +1,455 @@
+================================================================================
+FORENSIC ANALYSIS PIPELINE - HOW IT WORKS
+================================================================================
+
+PROJECT: Pytsk3-Based Disk Image Forensic Analysis
+PURPOSE: Extract, analyze, and report on file metadata from RAW disk images
+AUTHOR: Forensic Analysis System
+DATE: February 2026
+
+================================================================================
+OVERVIEW
+================================================================================
+
+This pipeline implements a complete forensic analysis workflow using The Sleuth 
+Kit (pytsk3) bindings. It takes a RAW disk image as input and produces two 
+output files:
+
+1. forensic_report.json - Complete metadata in structured JSON format
+2. forensic_summary.txt - Human-readable analysis report
+
+The pipeline executes in three main phases with optimized error handling and
+detailed logging at each stage.
+
+================================================================================
+PART 1: DISK & FILESYSTEM ANALYSIS
+================================================================================
+
+Phase 1.1 - IMAGE OPENING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The pipeline begins by opening the RAW disk image using pytsk3.Img_open().
+This creates an image handle that allows bytewise access to the entire disk.
+
+Key Points:
+  • Validates that the image file exists on disk before opening
+  • Creates a pytsk3 Image object that will be used for all subsequent operations
+  • Supports both FAT32, NTFS, ext4, and other filesystem formats
+  • RAW format means no additional metadata headers (pure filesystem data)
+
+Function: open_disk_image()
+Input: Absolute path to .raw file (e.g., C:\forensics\image.raw)
+Output: pytsk3 Image object stored in self.img
+
+Phase 1.2 - PARTITION DETECTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The pipeline then detects partition boundaries using the Volume System (VS) 
+interface. This reads the MBR (Master Boot Record) or GPT (GUID Partition Table)
+to identify logical partitions.
+
+How It Works:
+  1. pytsk3.VS_open() opens the volume system
+  2. Iterates through all partition entries
+  3. Filters for allocated (TSK_VS_PART_FLAG_ALLOC) partitions only
+  4. Records address, offset (in bytes), and size for each partition
+
+Why Offsets Matter:
+  • Disks store data in multiple partitions, each starting at different byte offsets
+  • When opening a filesystem, we must specify which partition's offset to use
+  • For a single-partition drive, this is typically 2048*512 = 1,048,576 bytes
+
+Function: detect_partitions()
+Input: pytsk3 Image object
+Output: List of partition dictionaries with addresses and offsets
+Fallback: If no partition system is detected, uses entire image as one partition
+
+Phase 1.3 - FILESYSTEM OPENING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+With partition information, the pipeline opens the filesystem from the first
+valid partition. This gives access to the file allocation table, inode structure,
+and directory entries.
+
+Process:
+  1. Takes offset of first partition
+  2. Calls pytsk3.FS_open(image, offset=offset)
+  3. Interrogates filesystem metadata:
+     - fs_type: FAT32, NTFS, EXT4, etc.
+     - block_size: Sector size (typically 512 or 4096 bytes)
+     - block_count: Total blocks/sectors in partition
+
+Function: open_filesystem()
+Input: Image object and partition offset
+Output: pytsk3 Filesystem object with type information
+Supported FS: NTFS, FAT32, FAT16, exFAT, ext4, ext3, ext2, HFS+, ISO9660
+
+Phase 1.4 - RECURSIVE FILE SCANNING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The pipeline recursively descends into the directory tree, examining every file
+and subdirectory. For each entry, it extracts complete metadata.
+
+Recursive Process:
+  1. Start at root directory "/"
+  2. For each directory entry in current directory:
+     a. Skip "." and ".." special entries
+     b. Decode filename (UTF-8, with error handling)
+     c. Build full path (e.g., /Windows/System32/drivers/etc/hosts)
+     d. Check if file is allocated or deleted
+     e. Open the inode (file metadata structure)
+     f. Extract all available metadata
+     g. If entry is directory, recurse into it
+
+Metadata Collected (Per File):
+  Field Name              Type        Description
+  ─────────────────────────────────────────────────────────────────────────
+  name                    string      Filename only (e.g., "hosts")
+  path                    string      Full path (e.g., "/Windows/System32/hosts")
+  size                    integer     File size in bytes
+  inode                   integer     Inode number (unique file identifier)
+  creation_time           string      ISO format timestamp (if available)
+  modification_time       string      Last write time in ISO format
+  access_time             string      Last access time in ISO format
+  is_deleted              boolean     Whether file is marked as deleted
+  is_directory            boolean     Whether this is a directory
+
+The Inode Structure:
+  • Every file has an inode that stores its metadata
+  • Contains timestamps (crtime, mtime, atime), permissions, size
+  • In deleted files, the inode may still exist even if directory entry is removed
+  • This allows recovery of information about deleted files
+
+Function: recursively_scan_files() → _scan_directory()
+Input: Filesystem object, starting directory
+Output: self.files_metadata dictionary containing all file records
+Performance: Builds a complete filesystem snapshot regardless of size
+
+================================================================================
+PART 2: JSON EXPORT
+================================================================================
+
+Phase 2.1 - DATA STRUCTURE ORGANIZATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+After scanning, the pipeline structures all collected data into a nested 
+dictionary that mirrors the logical organization of a forensic report:
+
+JSON Structure:
+{
+  "forensic_report": {
+    "image_path": "C:\\forensics\\image.raw",
+    "scan_timestamp": "2026-02-21 14:30:00",
+    "partition_info": {
+      "filesystem_type": "NTFS",
+      "block_size": 4096,
+      "block_count": 1048576
+    },
+    "summary": {
+      "total_partitions": 1,
+      "total_files": 12547,
+      "total_deleted_files": 342
+    },
+    "files": {
+      "5_system.ini": {
+        "name": "system.ini",
+        "path": "/Windows/system.ini",
+        "size": 2048,
+        "inode": 5,
+        "creation_time": "2020-01-15 10:30:00",
+        "modification_time": "2022-06-20 14:15:00",
+        "access_time": "2023-11-30 09:45:00",
+        "is_deleted": false,
+        "is_directory": false
+      },
+      ... (more files)
+    }
+  }
+}
+
+Why This Structure?
+  • Separates metadata (partition_info) from data (files)
+  • Includes summary statistics for quick analysis
+  • Allows reference by inode (files dictionary keys use "inode_filename")
+  • Maintains full path for filesystem reconstruction
+
+Phase 2.2 - JSON SERIALIZATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The pipeline converts the Python dictionary to JSON format with specific options:
+
+JSON Parameters:
+  • indent=4: Pretty-prints with 4-space indentation (human-readable)
+  • ensure_ascii=False: Preserves Unicode characters (non-ASCII filenames)
+  • encoding='utf-8': Standard UTF-8 text encoding
+
+Function: export_to_json(output_path)
+Input: Dictionary with all file metadata
+Output: forensic_report.json file
+Size: Typically 10-50MB for a full system drive analysis
+
+================================================================================
+PART 3: HUMAN-READABLE REPORT & LLM INTEGRATION
+================================================================================
+
+Phase 3.1 - STRUCTURED SUMMARY GENERATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The generate_summary_from_model() function processes the JSON data to produce
+a formatted text report. This function includes a placeholder for LLM integration.
+
+Current Implementation (Placeholder):
+  The function currently generates a structured summary by analyzing the JSON:
+
+  1. Extracts filesystem metadata (type, blocks, size)
+  2. Calculates file statistics:
+     - Total files
+     - Total deleted files
+     - Percentage of deleted files
+  3. Identifies largest file (by size)
+  4. Searches for suspicious extensions:
+     .exe, .bat, .ps1, .dll, .scr, .vbs, .js
+  5. Lists deleted files sorted by modification date
+  6. Formats into a readable ASCII text report
+
+Output Format Example:
+  ======================================================================
+  FORENSIC ANALYSIS REPORT
+  ======================================================================
+  
+  Image Path: C:\forensics\image.raw
+  Scan Timestamp: 2026-02-21 14:30:00
+  
+  FILESYSTEM INFORMATION:
+  ──────────────────────────────────────────────
+  Filesystem Type: NTFS
+  Block Size: 4096 bytes
+  Block Count: 1048576
+  
+  FILE STATISTICS:
+  ──────────────────────────────────────────────
+  Total Partitions: 1
+  Total Files: 12547
+  Deleted Files: 342
+  
+  LARGEST FILE:
+  ──────────────────────────────────────────────
+  Name: hiberfil.sys
+  Path: /hiberfil.sys
+  Size: 4,294,967,296 bytes
+  
+  SUSPICIOUS FILES (by extension):
+  ──────────────────────────────────────────────
+  Found 87 suspicious files:
+  
+    malware.exe
+    Path: /Users/Admin/Downloads/malware.exe
+    Size: 2,048,000 bytes
+    Modified: 2023-10-15 22:45:00
+    Deleted: No
+    
+    ...
+
+Phase 3.2 - LOCAL LLM INTEGRATION (OPTIONAL)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+To integrate with a local LLM (e.g., Ollama, LLaMA.cpp), uncomment the code in
+the function and ensure:
+
+Prerequisites:
+  1. Install Ollama: https://ollama.ai
+  2. Pull a model: ollama pull llama2
+  3. Run server: ollama serve (default port 11434)
+  4. Install requests: pip install requests
+
+Integration Flow:
+  1. Read forensic_report.json as string
+  2. Send to local LLM API via HTTP POST
+  3. LLM analyzes the JSON data
+  4. Receives AI-generated forensic insights
+  5. Appends to report
+
+Example Prompt to LLM:
+  "Analyze this forensic data and provide insights: {JSON_DATA}"
+
+The LLM would then:
+  • Identify patterns (e.g., "Recent installation of mining software")
+  • Flag anomalies (e.g., "Unusual number of deleted system files")
+  • Provide context (e.g., "Presence of .ps1 suggests PowerShell usage")
+  • Suggest timeline (e.g., "Evidence of activity between 2-4 AM")
+
+Phase 3.3 - FRIENDLY TEXT REPORT GENERATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The summary is saved to forensic_summary.txt with:
+  • Clear section headers with visual separators
+  • Sorted results (largest files first, newest deletions first)
+  • File size formatting with commas (12,500,000 instead of 12500000)
+  • Detection of suspicious file extensions
+  • Timeline information for deleted files
+
+Function: save_summary(summary_text, output_path)
+Input: Generated summary string
+Output: forensic_summary.txt file
+
+================================================================================
+WORKFLOW DIAGRAM
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                     FORENSIC ANALYSIS PIPELINE                     │
+└─────────────────────────────────────────────────────────────────────┘
+
+INPUT: image.raw (RAW disk image)
+  │
+  ├─→ Phase 1.1: open_disk_image()
+  │   ├─ Verify file exists
+  │   └─ Create pytsk3 Image object
+  │
+  ├─→ Phase 1.2: detect_partitions()
+  │   ├─ Read MBR/GPT
+  │   ├─ Identify partition boundaries
+  │   └─ Record offsets and sizes
+  │
+  ├─→ Phase 1.3: open_filesystem()
+  │   ├─ Read filesystem metadata
+  │   ├─ Determine filesystem type
+  │   └─ Create filesystem object
+  │
+  ├─→ Phase 1.4: recursively_scan_files()
+  │   ├─ Traverse directory tree
+  │   ├─ Extract file metadata
+  │   ├─ Identify deleted files
+  │   └─ Build files_metadata dictionary
+  │
+  ├─→ Phase 2.1: export_to_json()
+  │   ├─ Structure data into nested dict
+  │   ├─ Serialize to JSON
+  │   └─ Save as forensic_report.json
+  │
+  ├─→ Phase 3.1: generate_summary_from_model()
+  │   ├─ Read JSON data
+  │   ├─ Optional: Send to local LLM
+  │   ├─ Parse and analyze results
+  │   └─ Format readable summary
+  │
+  └─→ Phase 3.2: save_summary()
+      ├─ Write summary text
+      └─ Save as forensic_summary.txt
+
+OUTPUT: 
+  ├─ forensic_report.json (structured data)
+  └─ forensic_summary.txt (human-readable report)
+
+================================================================================
+ERROR HANDLING STRATEGY
+================================================================================
+
+The pipeline implements defensive programming at every stage:
+
+Level 1: Pre-Execution Checks
+  • Verify input file exists before processing
+  • Check output paths are writable
+  • Validate partition exists before opening
+
+Level 2: Try-Except Blocks
+  • Each major function wrapped in try-except
+  • Individual file processing doesn't crash pipeline
+  • Detailed error messages with traceback.print_exc()
+
+Level 3: Graceful Degradation
+  • If partition table not found, use entire image
+  • If metadata field missing, use default value
+  • If file can't be opened, skip and continue
+
+Level 4: Status Reporting
+  • Console output shows success/failure at each step
+  • Return codes indicate pipeline status (0=success, 1=failure)
+  • Detailed logging for debugging
+
+================================================================================
+FORENSIC SIGNIFICANCE
+================================================================================
+
+Why This Matters:
+1. DELETED FILE RECOVERY
+   • Deleted files still exist on disk if not overwritten
+   • Their inodes contain valuable metadata
+   • Timeline analysis reveals when deletion occurred
+
+2. TIMESTAMP ANALYSIS
+   • Modification times show when file was edited
+   • Access times show when file was read
+   • Creation times show original file installation/download date
+
+3. SUSPICIOUS FILE DETECTION
+   • .exe, .dll files in user directories suggest malware
+   • .ps1 PowerShell scripts used by attackers
+   • .bat batch files for automation
+   • Finding these aids in threat investigation
+
+4. STORAGE ALLOCATION ANALYSIS
+   • Large files (hiberfil.sys, pagefile.sys) are system files
+   • Finding unusual large files in user directories suggests data exfiltration
+   • File count stats reveal system activity level
+
+5. CHAIN OF CUSTODY
+   • JSON export creates timestamped, machine-readable evidence
+   • Can be hashed to verify integrity
+   • Provides reproducible results for legal proceedings
+
+================================================================================
+USAGE EXAMPLE
+================================================================================
+
+1. Update Configuration in forensic_pipeline.py:
+   IMAGE_PATH = r"C:\forensics\image.raw"
+   JSON_OUTPUT = r"D:\Forensics Application\forensic_report.json"
+   SUMMARY_OUTPUT = r"D:\Forensics Application\forensic_summary.txt"
+
+2. Run the Script:
+   python forensic_pipeline.py
+
+3. Monitor Output:
+   [*] Opening disk image: C:\forensics\image.raw
+   [+] Successfully opened disk image
+   [*] Detecting partitions...
+   [+] Partition 1: Address=0, Offset=1048576, Size=499,654,656,000
+   ...
+
+4. Review Results:
+   • Check forensic_report.json for complete data
+   • Read forensic_summary.txt for quick overview
+
+================================================================================
+TECHNICAL NOTES
+================================================================================
+
+pytsk3 API Primer:
+  • Img_open(path) - Opens a disk image
+  • VS_open(image, offset) - Opens volume system (partitions)
+  • FS_open(image, offset) - Opens filesystem
+  • fs.open_dir(path) - Opens directory by path
+  • fs.open_inode(inode_num) - Opens file metadata
+
+Timestamps:
+  • Unix epoch: seconds since January 1, 1970
+  • crtime: Creation/Birth time (NTFS)
+  • mtime: Modification time (all systems)
+  • atime: Access time (may be disabled for performance)
+  • All converted to ISO format: YYYY-MM-DD HH:MM:SS
+
+Performance Notes:
+  • Large drives (1TB+) may take 30+ minutes
+  • SSD vs HDD doesn't significantly affect speed (algorithm I/O bound)
+  • Network drives will be much slower
+  • Progress can be seen in real-time via console output
+
+Windows Considerations:
+  • Use raw string paths with 'r' prefix (r"C:\path\to\file")
+  • Escape backslashes are handled automatically
+  • Forward slashes work in file paths after reading from disk
+
+================================================================================
+END OF EXPLANATION
+================================================================================

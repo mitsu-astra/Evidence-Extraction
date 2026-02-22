@@ -1,0 +1,131 @@
+================================================================================
+COMPREHENSIVE FORENSIC ANALYSIS REPORT
+================================================================================
+
+Image Path: C:\forensics\image.raw
+Scan Timestamp: 2026-02-21 14:32:18
+
+FILESYSTEM INFORMATION:
+--------------------------------------------------------------------------------
+Filesystem Type: NTFS
+Block Size: 4096 bytes
+Block Count: 263626752
+
+FILE STATISTICS:
+--------------------------------------------------------------------------------
+Total Partitions: 1
+Total Files: 13
+Deleted Files: 1
+Suspicious Files: 8
+Encrypted Items: 1
+Network Artifacts: 1
+
+LARGEST FILE:
+--------------------------------------------------------------------------------
+Name: encrypted.img
+Path: /Users/Admin/Documents/encrypted.img
+Size: 10,737,418,240 bytes
+
+TOP FILE EXTENSIONS:
+--------------------------------------------------------------------------------
+.exe: 2 files
+(no extension): 2 files
+.sys: 2 files
+.dll: 2 files
+.ini: 1 files
+.tmp: 1 files
+.ps1: 1 files
+.bat: 1 files
+.img: 1 files
+
+SUSPICIOUS FILES (by extension):
+--------------------------------------------------------------------------------
+Found 8 suspicious files:
+
+Name: hiberfil.sys
+Path: /hiberfil.sys
+Size: 4,294,967,296 bytes
+Modified: 2026-02-21 04:30:00
+Deleted: No
+Hash: 8017eb24eb540282
+
+Name: pagefile.sys
+Path: /pagefile.sys
+Size: 2,147,483,648 bytes
+Modified: 2026-02-21 14:20:00
+Deleted: No
+Hash: a0ce8b7fc90e33c7
+
+Name: explorer.exe
+Path: /Windows/explorer.exe
+Size: 4,563,392 bytes
+Modified: 2024-08-10 13:22:15
+Deleted: No
+Hash: fff8c34fe4db7d38
+
+Name: ntdll.dll
+Path: /Windows/System32/ntdll.dll
+Size: 2,105,344 bytes
+Modified: 2024-06-18 11:45:00
+Deleted: No
+Hash: 2a5d883dd7818d43
+
+Name: malware.exe
+Path: /Users/Admin/Downloads/malware.exe
+Size: 2,048,576 bytes
+Modified: 2025-10-15 22:45:00
+Deleted: No
+Hash: 80d683557785fe07
+
+Name: ransomware.dll
+Path: /Windows/System32/drivers/ransomware.dll
+Size: 1,048,576 bytes
+Modified: 2025-11-22 03:15:00
+Deleted: No
+Hash: 5d3b518690b2d5e6
+
+Name: script.ps1
+Path: /Users/Admin/Documents/script.ps1
+Size: 8,192 bytes
+Modified: 2025-12-05 20:15:00
+Deleted: No
+Hash: 91b4b3265c058076
+
+Name: batch_file.bat
+Path: /Startup/batch_file.bat
+Size: 2,048 bytes
+Modified: 2025-11-20 09:30:00
+Deleted: No
+Hash: 0b1d2c392dfe3000
+
+DELETED FILES:
+--------------------------------------------------------------------------------
+Found 1 deleted files.
+
+Name: deleted_file.tmp
+Path: /Users/Admin/AppData/Local/Temp/deleted_file.tmp
+Size: 524,288 bytes
+Modified: 2025-12-15 10:45:00
+
+ENCRYPTED ITEMS:
+--------------------------------------------------------------------------------
+Found 1 encrypted items:
+
+Name: encrypted.img
+Path: /Users/Admin/Documents/encrypted.img
+Size: 10,737,418,240 bytes
+
+NETWORK ARTIFACTS:
+--------------------------------------------------------------------------------
+Found 1 network artifacts:
+
+Name: hosts
+Path: /Windows/System32/drivers/etc/hosts
+
+================================================================================
+END OF REPORT
+================================================================================
+
+[LLM-ASSISTED ANALYSIS]
+--------------------------------------------------------------------------------
+Error: LLM returned status 404

@@ -1,0 +1,278 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                ║
+║                    FLASK BACKEND - REACT INTEGRATION GUIDE                    ║
+║                                                                                ║
+║              Enable CORS and API endpoints for React frontend                  ║
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+1. ENABLE CORS IN FLASK
+═══════════════════════════════════════════════════════════════════════════════════
+
+The React frontend (http://localhost:5173) needs to communicate with the Flask backend 
+(http://localhost:5000). This requires enabling CORS (Cross-Origin Resource Sharing).
+
+STEP 1: Install Flask-CORS
+──────────────────────────
+.\.venv\Scripts\Activate.ps1
+pip install flask-cors
+
+STEP 2: Update forensic_web_app.py
+─────────────────────────────────
+Add these lines at the top of forensic_web_app.py:
+
+  from flask_cors import CORS
+  
+  app = Flask(__name__)
+  CORS(app)  # Enable CORS for all routes
+
+
+EXAMPLE:
+
+  from flask import Flask, render_template, request, jsonify, send_file, session
+  from flask_cors import CORS                              # ADD THIS
+  from werkzeug.utils import secure_filename
+  import os
+  import json
+  
+  app = Flask(__name__)
+  CORS(app)                                               # ADD THIS
+  app.secret_key = 'forensic-analysis-secret-key-2026'
+  
+  # ... rest of the code
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+2. VERIFY API ENDPOINTS
+═══════════════════════════════════════════════════════════════════════════════════
+
+The following endpoints should be present in forensic_web_app.py:
+
+POST /upload
+  Purpose: Upload forensic image
+  File: The disk image (raw, dd, e01, etc.)
+  Returns: { fileName, status }
+
+The React frontend expects these additional endpoints:
+
+GET /api/analysis/<id>/status
+  Get analysis progress
+  Returns: {
+    "id": "12345",
+    "fileName": "disk.E01",
+    "status": "analyzing|completed|error",
+    "progress": 45,
+    "summary": {
+      "totalFiles": 150,
+      "recoveredFiles": 120,
+      "deletedFiles": 30
+    }
+  }
+
+GET /api/analysis/<id>/report
+  Get full analysis report
+  Returns: {
+    "id": "12345",
+    "fileName": "disk.E01",
+    "summary": { ... },
+    "filesByType": { "jpg": 45, "pdf": 12, ... },
+    "timeline": [ ... ]
+  }
+
+GET /api/analysis/<id>/export/pdf
+  Export as PDF
+  Returns: PDF binary file
+
+GET /api/analysis/<id>/export/docx
+  Export as DOCX
+  Returns: DOCX binary file
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+3. UPDATE REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════════════════
+
+Add flask-cors to requirements_web.txt:
+
+  flask
+  flask-cors
+  requests
+  python-docx
+  reportlab
+  ...
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+4. RUNNING INTEGRATED SYSTEM
+═══════════════════════════════════════════════════════════════════════════════════
+
+Open THREE terminals:
+
+TERMINAL 1 - React Frontend
+──────────────────────────
+cd "D:\Forensics Application"
+npm run dev
+# Output: ➜  Local:   http://localhost:5173/
+
+TERMINAL 2 - Flask Backend
+──────────────────────────
+cd "D:\Forensics Application"
+.\.venv\Scripts\Activate.ps1
+python forensic_web_app.py
+# Output: Running on http://localhost:5000
+
+TERMINAL 3 - (Optional) Monitor Backend
+──────────────────────────────────────
+Watch the Flask terminal for log messages
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+5. TESTING THE INTEGRATION
+═══════════════════════════════════════════════════════════════════════════════════
+
+1. Open http://localhost:5173 in your browser
+2. Click "BEGIN ANALYSIS"
+3. Upload a forensic image file
+4. Check backend logs in Flask terminal for:
+   - File upload confirmation
+   - Analysis start message
+   - Progress updates
+5. Frontend should show progress bar and results
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+6. HANDLING ANALYSIS STATE
+═══════════════════════════════════════════════════════════════════════════════════
+
+The React components track analysis state with polling:
+
+ForensicFileUpload
+  → POST /api/upload (file)
+  → Dispatches 'fileUploaded' event
+
+ForensicAnalysisDashboard
+  → Listens for 'fileUploaded'
+  → Creates analysis record
+  → Polls /api/analysis/{id}/status every 2 seconds
+  → Updates UI with progress
+
+ForensicReportViewer
+  → Displays report from /api/analysis/{id}/report
+  → Handles PDF/DOCX export calls
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+7. EXAMPLE MINIMAL FLASK INTEGRATION
+═══════════════════════════════════════════════════════════════════════════════════
+
+Minimal example to make React work with existing Flask:
+
+```python
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import threading
+import time
+
+app = Flask(__name__)
+CORS(app)
+
+# Store analysis state in memory (use database in production)
+analysis_cache = {}
+
+@app.route('/api/upload', methods=['POST'])
+def api_upload():
+    if 'file' not in request.files:
+        return {'error': 'No file provided'}, 400
+    
+    file = request.files['file']
+    analysis_id = str(int(time.time()))
+    
+    # Store metadata
+    analysis_cache[analysis_id] = {
+        'fileName': file.filename,
+        'status': 'analyzing',
+        'progress': 0,
+    }
+    
+    # Start analysis in background thread
+    def run_analysis():
+        # Run your forensic_pipeline_advanced.AdvancedForensicAnalyzer here
+        # Update analysis_cache[analysis_id] with progress
+        analysis_cache[analysis_id]['status'] = 'completed'
+        analysis_cache[analysis_id]['progress'] = 100
+    
+    thread = threading.Thread(target=run_analysis)
+    thread.daemon = True
+    thread.start()
+    
+    return {
+        'fileName': file.filename,
+        'analysisId': analysis_id,
+        'status': 'analyzing'
+    }
+
+@app.route('/api/analysis/<analysis_id>/status', methods=['GET'])
+def get_analysis_status(analysis_id):
+    if analysis_id not in analysis_cache:
+        return {'error': 'Analysis not found'}, 404
+    
+    return analysis_cache[analysis_id]
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
+```
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+8. TROUBLESHOOTING CORS ERRORS
+═══════════════════════════════════════════════════════════════════════════════════
+
+Error: "No 'Access-Control-Allow-Origin' header"
+  Solution: Ensure CORS(app) is called in Flask
+  
+Error: "CORS policy blocked request"
+  Solution: Check that flask-cors is installed
+  Verify: pip list | grep -i cors
+  
+Error: "Preflight request failed"
+  Solution: CORS should handle OPTIONS requests automatically
+  
+To debug, check browser DevTools:
+  1. F12 → Network tab
+  2. Look for failed requests
+  3. Check Response headers for 'Access-Control-*'
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+9. PRODUCTION DEPLOYMENT
+═══════════════════════════════════════════════════════════════════════════════════
+
+For production:
+
+1. Build React frontend:
+   npm run build
+   # Creates dist/ folder with optimized build
+
+2. Serve React from Flask:
+   • Copy dist/* to static/
+   • Serve from Flask as static files
+   • Or use separate web server (nginx, Apache)
+
+3. Disable CORS in production:
+   # Use specific origins instead of *
+   CORS(app, resources={
+     r"/api/*": {
+       "origins": ["https://your-domain.com"],
+       "methods": ["GET", "POST"],
+       "allow_headers": ["Content-Type"]
+     }
+   })
+
+4. Use environment variables for configuration:
+   import os
+   FLASK_ENV = os.getenv('FLASK_ENV', 'production')
+
+
+═══════════════════════════════════════════════════════════════════════════════════

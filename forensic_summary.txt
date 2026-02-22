@@ -1,0 +1,78 @@
+======================================================================
+FORENSIC ANALYSIS REPORT
+======================================================================
+
+Image Path: C:\forensics\image.raw
+Scan Timestamp: 2026-02-21 14:24:55
+
+FILESYSTEM INFORMATION:
+----------------------------------------------------------------------
+Filesystem Type: NTFS
+Block Size: 4096 bytes
+Block Count: 263626752
+
+FILE STATISTICS:
+----------------------------------------------------------------------
+Total Partitions: 1
+Total Files: 11
+Deleted Files: 1
+
+LARGEST FILE:
+----------------------------------------------------------------------
+Name: hiberfil.sys
+Path: /hiberfil.sys
+Size: 4,294,967,296 bytes
+
+SUSPICIOUS FILES (by extension):
+----------------------------------------------------------------------
+Found 6 suspicious files:
+
+  Name: explorer.exe
+  Path: /Windows/explorer.exe
+  Size: 4,563,392 bytes
+  Modified: 2024-08-10 13:22:15
+  Deleted: No
+
+  Name: ntdll.dll
+  Path: /Windows/System32/ntdll.dll
+  Size: 2,105,344 bytes
+  Modified: 2024-06-18 11:45:00
+  Deleted: No
+
+  Name: malware.exe
+  Path: /Users/Admin/Downloads/malware.exe
+  Size: 2,048,576 bytes
+  Modified: 2025-10-15 22:45:00
+  Deleted: No
+
+  Name: ransomware.dll
+  Path: /Windows/System32/drivers/ransomware.dll
+  Size: 1,048,576 bytes
+  Modified: 2025-11-22 03:15:00
+  Deleted: No
+
+  Name: script.ps1
+  Path: /Users/Admin/Documents/script.ps1
+  Size: 8,192 bytes
+  Modified: 2025-12-05 20:15:00
+  Deleted: No
+
+  Name: batch_file.bat
+  Path: /Startup/batch_file.bat
+  Size: 2,048 bytes
+  Modified: 2025-11-20 09:30:00
+  Deleted: No
+
+DELETED FILES:
+----------------------------------------------------------------------
+Found 1 deleted files.
+Details:
+
+  Name: deleted_file.tmp
+  Path: /Users/Admin/AppData/Local/Temp/deleted_file.tmp
+  Size: 524,288 bytes
+  Modified: 2025-12-15 10:45:00
+
+======================================================================
+END OF REPORT
+======================================================================

@@ -1,0 +1,272 @@
+================================================================================
+.E01 FORENSIC IMAGE SUPPORT - QUICK SETUP GUIDE
+================================================================================
+
+The forensic_pipeline.py script now supports both RAW and .E01 (Encase) image
+formats. The script auto-detects the format and processes accordingly.
+
+================================================================================
+WHAT IS .E01?
+================================================================================
+
+.E01 is the Encase image format:
+  • Proprietary forensic image format from Guidance Software (now OpenText)
+  • Supports compression (reduces file size by 50-80%)
+  • Supports segmentation (splits large images into multiple files)
+  • Includes metadata (acquisition details, case information)
+  • Used by most professional forensic tools
+  • Standard in law enforcement and corporate investigations
+
+Examples of .E01 files:
+  image.E01          - Single file image (~2-4 GB typical)
+  image.E01          - Segmented image (part 1 of 3)
+  image.E02          - Segmented image (part 2 of 3)
+  image.E03          - Segmented image (part 3 of 3)
+
+================================================================================
+INSTALLATION REQUIREMENTS
+================================================================================
+
+To use .E01 images, you need pyewf (Python bindings for libewf):
+
+Step 1: Install pyewf
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Windows (Recommended Method 1 - Binaries):
+  pip install pyewf
+
+Windows (If binaries don't work - Method 2 - Build from source):
+  1. Install Microsoft C++ Build Tools
+     https://visualstudio.microsoft.com/downloads/
+     (Select "Desktop development with C++" during installation)
+  
+  2. Install pyewf from source:
+     pip install pyewf --no-binary pyewf
+
+Alternative (Windows - Using Pre-built Wheels):
+  • Pre-built wheels are available at:
+    https://github.com/py-forensics/python-ewf/releases
+  
+  • Download the appropriate wheel (.whl file):
+    pyewf-20140608.win-amd64.whl (for 64-bit Python 3.x)
+  
+  • Install with:
+    pip install path\to\pyewf-20140608.win-amd64.whl
+
+Step 2: Verify Installation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Test in PowerShell:
+  python -c "import pyewf; print('pyewf version:', pyewf.__version__)"
+
+Expected output:
+  pyewf version: 20140608
+
+If it fails, pyewf is not installed correctly.
+
+================================================================================
+USAGE WITH .E01 FILES
+================================================================================
+
+Option 1: Single .E01 File
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Edit forensic_pipeline.py (lines 368-374):
+
+  IMAGE_PATH = r"C:\forensics\image.E01"
+
+That's it! The script auto-detects the format and uses pyewf automatically.
+
+Option 2: Segmented .E01 Files (E01, E02, E03, etc.)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+If you have a segmented image:
+  image.E01
+  image.E02
+  image.E03
+
+Set IMAGE_PATH to the FIRST segment only:
+
+  IMAGE_PATH = r"C:\forensics\image.E01"
+
+pyewf automatically reads the related segments (E02, E03, etc.) if they are
+in the same directory. No additional configuration needed.
+
+Option 3: Still Using RAW Images
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The script works exactly as before with RAW images:
+
+  IMAGE_PATH = r"C:\forensics\image.raw"
+
+No pyewf required for RAW format.
+
+================================================================================
+RUNNING THE ANALYSIS
+================================================================================
+
+1. Prepare your image:
+   • Place the .E01 file in a known location
+   • Ensure all segments are in the same directory
+   • Verify read permissions
+
+2. Update the script:
+   • Edit forensic_pipeline.py
+   • Set IMAGE_PATH to your .E01 file location
+
+3. Run the analysis:
+   PowerShell:
+     python forensic_pipeline.py
+
+4. Wait for completion:
+   Expected output:
+     [*] Opening disk image: C:\forensics\image.E01
+     [+] Detected .E01 (Encase) format
+     [*] Opening with pyewf...
+     [+] Successfully opened .E01 image with pyewf
+     [*] Detecting partitions...
+     ...
+
+5. Review results:
+   • forensic_report.json - Complete metadata
+   • forensic_summary.txt - Human-readable report
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Issue 1: "ModuleNotFoundError: No module named 'pyewf'"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Solution: pyewf is not installed
+
+  pip install pyewf
+
+If that fails:
+  • Check Python version: python --version (should be 3.6+)
+  • Install build tools: https://visualstudio.microsoft.com/downloads/
+  • Try: pip install pyewf --upgrade
+
+Issue 2: ".E01 format requires pyewf library"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Solution: Script detected .E01 but pyewf failed to import
+
+  Check installation:
+    python -c "import pyewf; print('OK')"
+
+If "OK" prints, the issue is elsewhere. If it fails, reinstall:
+  pip uninstall pyewf
+  pip install pyewf --upgrade --no-cache-dir
+
+Issue 3: "Error opening .E01 with pyewf: [error details]"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Common causes:
+  • File missing or permission denied
+  • Missing segments (E02, E03, etc. not in same folder)
+  • Corrupted .E01 file
+  • Incompatible pyewf version
+
+Solutions:
+  1. Verify file exists:
+     dir C:\forensics\image.E*
+  
+  2. Check permissions (must have read access)
+  
+  3. Verify all segments are present and nearby
+  
+  4. Try opening with Encase or FTK to verify image integrity
+
+Issue 4: Analysis runs but produces incomplete data
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Possible causes:
+  • pyewf opened the image but with read errors
+  • Image is corrupted
+  • Filesystem is unknown or damaged
+
+Solutions:
+  1. Try the image in Encase or FTK to verify
+  2. Check console output for warnings or errors
+  3. Enable verbose logging if available
+
+================================================================================
+PERFORMANCE NOTES
+================================================================================
+
+Comparison: RAW vs .E01
+
+  RAW Format:
+    • Direct disk access
+    • Fastest analysis speed
+    • Larger file size (~100-500 GB for full drive)
+    • No decompression overhead
+    • Analysis time: ~5-30 minutes per 500GB
+
+  .E01 Format:
+    • Requires decompression on-the-fly
+    • Compressed (typically 30-50% of RAW size)
+    • Smaller storage footprint
+    • Slightly slower analysis (decompression overhead)
+    • Analysis time: ~10-40 minutes per 500GB equivalent
+
+For a 500 GB drive:
+  • RAW image: ~500 GB file
+  • .E01 image: ~150-250 GB file (compressed)
+
+========================================================================= 
+ADVANCED: Converting .E01 to RAW (If Needed)
+================================================================================
+
+If you want to work with RAW format instead:
+
+Option 1: Using ewfexport (from libewf)
+  ewfexport -f raw -o output.raw image.E01
+
+Option 2: Using Encase (GUI)
+  File → Export → Select RAW format
+
+Option 3: Using The Sleuth Kit
+  ewfexport -t image.E01 -f raw > output.raw
+
+This is optional - the pipeline handles .E01 directly.
+
+================================================================================
+SECURITY & LEGAL NOTES
+================================================================================
+
+• Chain of Custody: Document image hash before and after analysis
+• Timestamp: .E01 files preserve acquisition timestamps
+• Read-only: Ensure drive/image mount is read-only to preserve evidence
+• Hash Verification: Before analysis, compute and save:
+    python -m hashlib sha256 image.E01
+
+This ensures no tampering occurred during processing.
+
+================================================================================
+SUPPORT FOR SEGMENTED IMAGES
+================================================================================
+
+The script handles segmented .E01 files automatically:
+
+If your image is split into segments:
+  image.E01 (Part 1)
+  image.E02 (Part 2)
+  image.E03 (Part 3)
+  ...
+
+Simply provide the path to the first segment:
+  IMAGE_PATH = r"C:\forensics\image.E01"
+
+pyewf automatically:
+  1. Detects the segments
+  2. Reads them in order
+  3. Reconstructs the complete image
+  4. Handles any missing segments or corruption
+
+No special configuration needed.
+
+================================================================================
+END OF SETUP GUIDE
+================================================================================
