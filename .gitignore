@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+dist/
+build/
+.vite/
+*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Forensic/Evidence files
+*.E01
+*.E02
+*.dd
+*.raw
+*.aff
+
+# Generated reports
+forensic_report*.json
+forensic_summary*.txt
+forensic_timeline*.txt
+
+# Lock files (keep package-lock.json but ignore others if needed)
+# package-lock.json
+
+# Environment variables
+.env
+.env.local
