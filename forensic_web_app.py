@@ -6,6 +6,7 @@ Exports: PDF and DOC formats
 """
 
 from flask import Flask, render_template, request, jsonify, send_file, session
+from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import os
 import json
@@ -25,6 +26,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 app = Flask(__name__)
 app.secret_key = 'forensic-analysis-secret-key-2026'
+CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})
 
 # Configuration
 UPLOAD_FOLDER = r'D:\Forensics Application\uploads'
@@ -433,6 +435,56 @@ def index():
 def get_status():
     """Get current analysis status."""
     return jsonify(analysis_status)
+
+@app.route('/api/upload', methods=['POST'])
+def upload_file():
+    """Handle file upload."""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file type. Allowed: raw, dd, e01, img, iso, bin, dmg'}), 400
+        
+        filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"{timestamp}_{filename}"
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        file.save(filepath)
+        
+        return jsonify({
+            'success': True,
+            'message': 'File uploaded successfully',
+            'filename': filename,
+            'filepath': filepath
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/analysis/<analysis_id>/status', methods=['GET'])
+def get_analysis_status(analysis_id):
+    """Get status of a specific analysis."""
+    global analysis_status
+    
+    try:
+        # Check if this is the current analysis
+        if analysis_status['current'] == analysis_id:
+            return jsonify({
+                'id': analysis_id,
+                'status': analysis_status['status'],
+                'progress': analysis_status['progress'],
+                'message': analysis_status['message'],
+                'errors': analysis_status['errors'],
+                'results': analysis_status['results']
+            })
+        else:
+            return jsonify({'error': 'Analysis not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze():

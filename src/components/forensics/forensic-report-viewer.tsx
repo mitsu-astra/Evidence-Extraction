@@ -33,7 +33,7 @@ export const ForensicReportViewer: React.FC<{ analysisId?: string }> = ({ analys
     const fetchReport = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`/api/analysis/${analysisId}/report`);
+        const response = await fetch(`http://localhost:5000/api/analysis/${analysisId}/report`);
         if (!response.ok) throw new Error('Failed to fetch report');
         const data = await response.json();
         setReport(data);
@@ -50,7 +50,7 @@ export const ForensicReportViewer: React.FC<{ analysisId?: string }> = ({ analys
   const handleExportPDF = async () => {
     if (!analysisId) return;
     try {
-      const response = await fetch(`/api/analysis/${analysisId}/export/pdf`);
+      const response = await fetch(`http://localhost:5000/api/analysis/${analysisId}/export/pdf`);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -65,7 +65,7 @@ export const ForensicReportViewer: React.FC<{ analysisId?: string }> = ({ analys
   const handleExportDOCX = async () => {
     if (!analysisId) return;
     try {
-      const response = await fetch(`/api/analysis/${analysisId}/export/docx`);
+      const response = await fetch(`http://localhost:5000/api/analysis/${analysisId}/export/docx`);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');

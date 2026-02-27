@@ -29,8 +29,8 @@ export const ForensicAnalysisDashboard: React.FC = () => {
     // Listen for file upload events
     const handleFileUpload = (event: any) => {
       const newAnalysis: AnalysisResult = {
-        id: Date.now().toString(),
-        fileName: event.detail.fileName || 'Unknown',
+        id: event.detail.analysis_id || Date.now().toString(),
+        fileName: event.detail.fileName || event.detail.filename || 'Unknown',
         status: 'analyzing',
         progress: 10,
         timestamp: new Date().toISOString(),
@@ -50,7 +50,7 @@ export const ForensicAnalysisDashboard: React.FC = () => {
 
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`/api/analysis/${selectedAnalysis.id}/status`);
+        const response = await fetch(`http://localhost:5000/api/analysis/${selectedAnalysis.id}/status`);
         if (!response.ok) throw new Error('Failed to fetch status');
 
         const data = await response.json();

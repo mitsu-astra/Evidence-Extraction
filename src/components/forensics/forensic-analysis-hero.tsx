@@ -145,13 +145,18 @@ const ForensicAnalysisHero: React.FC = () => {
         .forensic-title {
           grid-column: 1 / -1;
           align-self: center;
-          font-size: clamp(100px, 8vw, 200px);
+          font-size: clamp(80px, 6.5vw, 160px);
           font-family: 'Oswald', 'Righteous', sans-serif;
           font-weight: 500;
           line-height: 0.9;
           letter-spacing: -0.01em;
-          color: #B91C1C;
+          background: linear-gradient(180deg, #e85555 0%, #d63838 30%, #b82525 70%, #6b0f0f 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
           text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+          margin-top: 8.5rem;
+          filter: contrast(1.05) brightness(1.05);
         }
 
         @import url('https://fonts.googleapis.com/css2?family=Righteous:wght@400;700&family=Oswald:wght@400;500&family=IBM+Plex+Serif:wght@400;600&family=Sora:wght@400;500;600&display=swap');
@@ -159,20 +164,57 @@ const ForensicAnalysisHero: React.FC = () => {
         .forensic-cta-button {
           pointer-events: auto;
           background: var(--silver);
-          color: var(--bg);
+          color: #1a1a1a;
           padding: 1rem 2rem;
           text-decoration: none;
-          font-weight: 500;
+          font-weight: 700;
           font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          transition: 0.3s;
+          transition: all 0.3s;
           cursor: pointer;
           border: none;
-          font-size: 1rem;
+          font-size: 1.1rem;
+          position: relative;
+          overflow: hidden;
         }
 
-        .forensic-cta-button:hover { 
-          background: var(--accent); 
-          transform: translateY(-5px); 
+        .forensic-cta-button::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background-image: 
+            radial-gradient(circle at 8% 15%, #8b1515 0%, #8b1515 2%, rgba(139, 21, 21, 0.8) 3%, transparent 6%),
+            radial-gradient(circle at 15% 35%, #a82828 0%, #a82828 1.5%, rgba(168, 40, 40, 0.7) 2%, transparent 4%),
+            radial-gradient(circle at 92% 25%, #6b0f0f 0%, #6b0f0f 3%, rgba(107, 15, 15, 0.85) 4%, transparent 8%),
+            radial-gradient(circle at 5% 65%, #8b1515 0%, #8b1515 1%, rgba(139, 21, 21, 0.75) 1.5%, transparent 3%),
+            radial-gradient(circle at 88% 75%, #a82828 0%, #a82828 2.5%, rgba(168, 40, 40, 0.8) 3.5%, transparent 7%),
+            radial-gradient(circle at 10% 85%, #6b0f0f 0%, #6b0f0f 1px, transparent 2%),
+            radial-gradient(circle at 95% 45%, #8b1515 0%, #8b1515 0.8px, transparent 1.5%),
+            radial-gradient(circle at 3% 50%, #a82828 0%, #a82828 1.2px, transparent 2.5%),
+            radial-gradient(circle at 20% 90%, #6b0f0f 0%, #6b0f0f 1.8%, rgba(107, 15, 15, 0.7) 2.5%, transparent 5%),
+            radial-gradient(circle at 97% 60%, #8b1515 0%, #8b1515 0.5px, transparent 1%),
+            radial-gradient(circle at 12% 8%, #a82828 0%, #a82828 1px, transparent 2%),
+            radial-gradient(circle at 90% 12%, #6b0f0f 0%, #6b0f0f 0.7px, transparent 1.5%),
+            radial-gradient(circle at 85% 88%, #8b1515 0%, #8b1515 1.2px, transparent 2.5%),
+            radial-gradient(circle at 6% 92%, #a82828 0%, #a82828 0.9px, transparent 1.8%),
+            radial-gradient(circle at 42% 8%, #6b0f0f 0%, #6b0f0f 1.5%, rgba(107, 15, 15, 0.65) 2%, transparent 4%),
+            radial-gradient(circle at 58% 12%, #8b1515 0%, #8b1515 0.6px, transparent 1.2%),
+            radial-gradient(circle at 35% 92%, #a82828 0%, #a82828 1.8%, rgba(168, 40, 40, 0.75) 2.5%, transparent 5%),
+            radial-gradient(circle at 68% 88%, #6b0f0f 0%, #6b0f0f 0.8px, transparent 1.6%),
+            radial-gradient(circle at 48% 18%, #8b1515 0%, #8b1515 0.5px, transparent 1%),
+            radial-gradient(circle at 52% 85%, #a82828 0%, #a82828 0.7px, transparent 1.4%),
+            radial-gradient(circle at 25% 28%, #6b0f0f 0%, #6b0f0f 0.9px, transparent 1.8%),
+            radial-gradient(circle at 72% 22%, #8b1515 0%, #8b1515 1.1px, transparent 2.2%),
+            radial-gradient(circle at 28% 72%, #a82828 0%, #a82828 1.3px, transparent 2.6%),
+            radial-gradient(circle at 78% 68%, #6b0f0f 0%, #6b0f0f 0.6px, transparent 1.3%),
+            radial-gradient(ellipse 8px 15px at 18% 20%, #8b1515 0%, rgba(139, 21, 21, 0.6) 50%, transparent 100%),
+            radial-gradient(ellipse 6px 12px at 88% 35%, #a82828 0%, rgba(168, 40, 40, 0.5) 50%, transparent 100%);
+          opacity: 0;
+          transition: opacity 0.3s;
+          pointer-events: none;
+        }
+
+        .forensic-cta-button:hover::before {
+          opacity: 1;
         }
 
         .forensic-scroll-hint {

@@ -3,6 +3,7 @@ import ForensicAnalysisHero from './components/forensics/forensic-analysis-hero'
 import ForensicFileUpload from './components/forensics/forensic-file-upload';
 import ForensicAnalysisDashboard from './components/forensics/forensic-analysis-dashboard';
 import { NavBar } from './components/ui/tubelight-navbar';
+import LetterGlitch from './components/ui/LetterGlitch';
 import { Home, Upload, BarChart3, FileText } from 'lucide-react';
 import './App.css';
 
@@ -47,8 +48,20 @@ function App() {
 
       {/* Analysis Section */}
       {showAnalysis && (
-        <div className="min-h-screen bg-gray-950 pt-20">
-          <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="min-h-screen bg-gray-950 pt-20 relative">
+          {/* LetterGlitch Background */}
+          <div className="fixed inset-0 z-0">
+            <LetterGlitch
+              glitchSpeed={50}
+              centerVignette={true}
+              outerVignette={false}
+              smooth={true}
+              glitchColors={['#8b1515', '#d63838', '#6b0f0f']}
+            />
+          </div>
+
+          {/* Content Layer */}
+          <div className="relative z-10 max-w-7xl mx-auto px-4 py-8">
             
             <div className="space-y-8">
               <section>

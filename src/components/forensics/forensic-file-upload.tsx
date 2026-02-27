@@ -50,7 +50,7 @@ export const ForensicFileUpload: React.FC = () => {
 
     try {
       // Upload to Flask backend
-      const response = await fetch('/api/upload', {
+      const response = await fetch('http://localhost:5000/api/upload', {
         method: 'POST',
         body: formData,
       });
@@ -59,7 +59,25 @@ export const ForensicFileUpload: React.FC = () => {
         throw new Error('Upload failed');
       }
 
-      const data = await response.json();
+      const uploadData = await response.json();
+      
+      // Start forensic analysis with the uploaded file path
+      const analyzeResponse = await fetch('http://localhost:5000/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image_path: uploadData.filepath
+        }),
+      });
+
+      if (!analyzeResponse.ok) {
+        throw new Error('Failed to start analysis');
+      }
+
+      const analyzeData = await analyzeResponse.json();
+      
       setUploadStatus({
         isUploading: false,
         progress: 100,
@@ -67,9 +85,15 @@ export const ForensicFileUpload: React.FC = () => {
         uploadSuccess: true,
       });
 
-      // Trigger analysis after upload
+      // Trigger analysis after upload with real analysis data
       setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('fileUploaded', { detail: data }));
+        window.dispatchEvent(new CustomEvent('fileUploaded', { 
+          detail: {
+            ...uploadData,
+            ...analyzeData,
+            fileName: file.name
+          } 
+        }));
         setShowDownloadMenu(true);
       }, 500);
     } catch (error) {
@@ -84,7 +108,7 @@ export const ForensicFileUpload: React.FC = () => {
   const handleDownload = async (format: 'pdf' | 'docx') => {
     setIsDownloading(true);
     try {
-      const response = await fetch(`/api/export/${format}`);
+      const response = await fetch(`http://localhost:5000/api/export/${format}`);
       
       if (!response.ok) {
         throw new Error('Download failed');
