@@ -5,7 +5,11 @@ import React, { useEffect, useRef } from 'react';
  * Modern 3D parallax landing page with forensic investigation theme
  * Features: 3D perspective, mouse parallax tracking, grain effect
  */
-const ForensicAnalysisHero: React.FC = () => {
+interface ForensicAnalysisHeroProps {
+  onBeginAnalysis?: () => void;
+}
+
+const ForensicAnalysisHero: React.FC<ForensicAnalysisHeroProps> = ({ onBeginAnalysis }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const layersRef = useRef<HTMLDivElement[]>([]);
 
@@ -31,21 +35,23 @@ const ForensicAnalysisHero: React.FC = () => {
       });
     };
 
-    // Entrance Animation
+    // Entrance Animation — use a single rAF so the browser flushes the
+    // initial style before animating. Transition capped at 0.4s so content
+    // is visible almost immediately instead of waiting 2.8s.
     canvas.style.opacity = '0';
-    canvas.style.transform = 'rotateX(90deg) rotateZ(0deg) scale(0.8)';
-    
-    const timeout = setTimeout(() => {
-      canvas.style.transition = 'all 2.5s cubic-bezier(0.16, 1, 0.3, 1)';
+    canvas.style.transform = 'rotateX(55deg) rotateZ(-25deg) scale(0.96)';
+    canvas.style.transition = 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+
+    const frameId = requestAnimationFrame(() => {
       canvas.style.opacity = '1';
       canvas.style.transform = 'rotateX(55deg) rotateZ(-25deg) scale(1)';
-    }, 300);
+    });
 
     window.addEventListener('mousemove', handleMouseMove);
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      clearTimeout(timeout);
+      cancelAnimationFrame(frameId);
     };
   }, []);
 
@@ -140,8 +146,6 @@ const ForensicAnalysisHero: React.FC = () => {
           pointer-events: none;
         }
 
-        @import url('https://fonts.googleapis.com/css2?family=Righteous:wght@400;700&family=Oswald:wght@400;500&display=swap');
-
         .forensic-title {
           grid-column: 1 / -1;
           align-self: center;
@@ -159,62 +163,68 @@ const ForensicAnalysisHero: React.FC = () => {
           filter: contrast(1.05) brightness(1.05);
         }
 
-        @import url('https://fonts.googleapis.com/css2?family=Righteous:wght@400;700&family=Oswald:wght@400;500&family=IBM+Plex+Serif:wght@400;600&family=Sora:wght@400;500;600&display=swap');
-
         .forensic-cta-button {
-          pointer-events: auto;
-          background: var(--silver);
-          color: #1a1a1a;
-          padding: 1rem 2rem;
-          text-decoration: none;
-          font-weight: 700;
-          font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          transition: all 0.3s;
-          cursor: pointer;
-          border: none;
-          font-size: 1.1rem;
-          position: relative;
-          overflow: hidden;
-        }
+        pointer-events: auto;
+        background: #32363d;
+        color: #dbe0e6; /* slightly brighter than before */
+        padding: 0.65rem 1.8rem;
+        text-decoration: none;
+        font-weight: 600;
+        font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-size: 0.82rem;
+        letter-spacing: 0.14em;
+        border: 1px solid rgba(184, 192, 204, 0.18);
+        border-radius: 999px;
+        cursor: pointer;
+        position: relative;
+        overflow: visible;
+        box-shadow: 0 2px 18px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        transition: background 0.35s ease, color 0.35s ease, box-shadow 0.4s ease, border-color 0.35s ease, transform 0.25s ease;
+      }
 
-        .forensic-cta-button::before {
-          content: '';
+      .forensic-cta-button:hover {
+        background: #78121a; /* cleaner forensic crimson */
+        color: #ffffff;      /* strong contrast */
+        border-color: rgba(200, 40, 40, 0.5);
+        box-shadow:
+          0 0 28px rgba(122, 12, 22, 0.65),
+          0 4px 24px rgba(0, 0, 0, 0.7),
+          inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        transform: translateY(-2px);
+      }
+
+        /* Drip drops — instant out, animated in */
+        .forensic-drip {
           position: absolute;
-          inset: 0;
-          background-image: 
-            radial-gradient(circle at 8% 15%, #8b1515 0%, #8b1515 2%, rgba(139, 21, 21, 0.8) 3%, transparent 6%),
-            radial-gradient(circle at 15% 35%, #a82828 0%, #a82828 1.5%, rgba(168, 40, 40, 0.7) 2%, transparent 4%),
-            radial-gradient(circle at 92% 25%, #6b0f0f 0%, #6b0f0f 3%, rgba(107, 15, 15, 0.85) 4%, transparent 8%),
-            radial-gradient(circle at 5% 65%, #8b1515 0%, #8b1515 1%, rgba(139, 21, 21, 0.75) 1.5%, transparent 3%),
-            radial-gradient(circle at 88% 75%, #a82828 0%, #a82828 2.5%, rgba(168, 40, 40, 0.8) 3.5%, transparent 7%),
-            radial-gradient(circle at 10% 85%, #6b0f0f 0%, #6b0f0f 1px, transparent 2%),
-            radial-gradient(circle at 95% 45%, #8b1515 0%, #8b1515 0.8px, transparent 1.5%),
-            radial-gradient(circle at 3% 50%, #a82828 0%, #a82828 1.2px, transparent 2.5%),
-            radial-gradient(circle at 20% 90%, #6b0f0f 0%, #6b0f0f 1.8%, rgba(107, 15, 15, 0.7) 2.5%, transparent 5%),
-            radial-gradient(circle at 97% 60%, #8b1515 0%, #8b1515 0.5px, transparent 1%),
-            radial-gradient(circle at 12% 8%, #a82828 0%, #a82828 1px, transparent 2%),
-            radial-gradient(circle at 90% 12%, #6b0f0f 0%, #6b0f0f 0.7px, transparent 1.5%),
-            radial-gradient(circle at 85% 88%, #8b1515 0%, #8b1515 1.2px, transparent 2.5%),
-            radial-gradient(circle at 6% 92%, #a82828 0%, #a82828 0.9px, transparent 1.8%),
-            radial-gradient(circle at 42% 8%, #6b0f0f 0%, #6b0f0f 1.5%, rgba(107, 15, 15, 0.65) 2%, transparent 4%),
-            radial-gradient(circle at 58% 12%, #8b1515 0%, #8b1515 0.6px, transparent 1.2%),
-            radial-gradient(circle at 35% 92%, #a82828 0%, #a82828 1.8%, rgba(168, 40, 40, 0.75) 2.5%, transparent 5%),
-            radial-gradient(circle at 68% 88%, #6b0f0f 0%, #6b0f0f 0.8px, transparent 1.6%),
-            radial-gradient(circle at 48% 18%, #8b1515 0%, #8b1515 0.5px, transparent 1%),
-            radial-gradient(circle at 52% 85%, #a82828 0%, #a82828 0.7px, transparent 1.4%),
-            radial-gradient(circle at 25% 28%, #6b0f0f 0%, #6b0f0f 0.9px, transparent 1.8%),
-            radial-gradient(circle at 72% 22%, #8b1515 0%, #8b1515 1.1px, transparent 2.2%),
-            radial-gradient(circle at 28% 72%, #a82828 0%, #a82828 1.3px, transparent 2.6%),
-            radial-gradient(circle at 78% 68%, #6b0f0f 0%, #6b0f0f 0.6px, transparent 1.3%),
-            radial-gradient(ellipse 8px 15px at 18% 20%, #8b1515 0%, rgba(139, 21, 21, 0.6) 50%, transparent 100%),
-            radial-gradient(ellipse 6px 12px at 88% 35%, #a82828 0%, rgba(168, 40, 40, 0.5) 50%, transparent 100%);
+          bottom: -1px;
+          background: #5b0101;
+          border-radius: 0 0 50% 50%;
+          transform: scaleY(0);
+          transform-origin: top center;
           opacity: 0;
-          transition: opacity 0.3s;
+          transition: none;
           pointer-events: none;
         }
 
-        .forensic-cta-button:hover::before {
-          opacity: 1;
+        .forensic-cta-button:hover .forensic-drip:nth-child(1) {
+          opacity: 1; transform: scaleY(1);
+          transition: transform 0.42s cubic-bezier(0.4, 0, 0.3, 1) 0.20s, opacity 0.12s ease 0.20s;
+        }
+        .forensic-cta-button:hover .forensic-drip:nth-child(2) {
+          opacity: 1; transform: scaleY(1);
+          transition: transform 0.48s cubic-bezier(0.4, 0, 0.3, 1) 0.06s, opacity 0.12s ease 0.06s;
+        }
+        .forensic-cta-button:hover .forensic-drip:nth-child(3) {
+          opacity: 1; transform: scaleY(1);
+          transition: transform 0.38s cubic-bezier(0.4, 0, 0.3, 1) 0.28s, opacity 0.12s ease 0.28s;
+        }
+        .forensic-cta-button:hover .forensic-drip:nth-child(4) {
+          opacity: 1; transform: scaleY(1);
+          transition: transform 0.44s cubic-bezier(0.4, 0, 0.3, 1) 0.12s, opacity 0.12s ease 0.12s;
+        }
+        .forensic-cta-button:hover .forensic-drip:nth-child(5) {
+          opacity: 1; transform: scaleY(1);
+          transition: transform 0.40s cubic-bezier(0.4, 0, 0.3, 1) 0.34s, opacity 0.12s ease 0.34s;
         }
 
         .forensic-scroll-hint {
@@ -257,10 +267,17 @@ const ForensicAnalysisHero: React.FC = () => {
               <p>[ DIGITAL FORENSIC ANALYSIS SUITE ]</p>
               <p>ADVANCED INVESTIGATION & DATA RECOVERY</p>
             </div>
-            <button className="forensic-cta-button" onClick={() => {
-              // Navigate to analysis or scroll to content
-              window.location.hash = '#analysis';
-            }}>BEGIN ANALYSIS</button>
+            <button className="forensic-cta-button" onClick={(e) => {
+              e.stopPropagation();
+              onBeginAnalysis?.();
+            }}>
+              BEGIN ANALYSIS
+              <span className="forensic-drip" style={{ left: '22%', width: '4px', height: '17px' }}></span>
+              <span className="forensic-drip" style={{ left: '36%', width: '5px', height: '23px' }}></span>
+              <span className="forensic-drip" style={{ left: '51%', width: '3px', height: '14px' }}></span>
+              <span className="forensic-drip" style={{ left: '64%', width: '5px', height: '20px' }}></span>
+              <span className="forensic-drip" style={{ left: '76%', width: '3px', height: '12px' }}></span>
+            </button>
           </div>
         </div>
 

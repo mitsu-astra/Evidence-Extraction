@@ -50,13 +50,17 @@ export const ForensicReportViewer: React.FC<{ analysisId?: string }> = ({ analys
   const handleExportPDF = async () => {
     if (!analysisId) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/analysis/${analysisId}/export/pdf`);
+      const response = await fetch(`http://localhost:5000/api/export/pdf`);
+      if (!response.ok) throw new Error('Failed to download PDF');
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `forensic_report_${analysisId}.pdf`;
+      document.body.appendChild(a);
       a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (error) {
       console.error('Export error:', error);
     }
@@ -65,13 +69,17 @@ export const ForensicReportViewer: React.FC<{ analysisId?: string }> = ({ analys
   const handleExportDOCX = async () => {
     if (!analysisId) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/analysis/${analysisId}/export/docx`);
+      const response = await fetch(`http://localhost:5000/api/export/docx`);
+      if (!response.ok) throw new Error('Failed to download DOCX');
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `forensic_report_${analysisId}.docx`;
+      document.body.appendChild(a);
       a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (error) {
       console.error('Export error:', error);
     }

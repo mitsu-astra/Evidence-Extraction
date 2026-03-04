@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import type { AnalysisResultData } from '../../App';
 
 interface UploadStatus {
   isUploading: boolean;
@@ -7,13 +8,18 @@ interface UploadStatus {
   fileName?: string;
   error?: string;
   uploadSuccess?: boolean;
+  message?: string;
+}
+
+interface ForensicFileUploadProps {
+  onAnalysisComplete?: (result: AnalysisResultData) => void;
 }
 
 /**
  * Forensic File Upload Component
  * Handles disk image and evidence file uploads
  */
-export const ForensicFileUpload: React.FC = () => {
+export const ForensicFileUpload: React.FC<ForensicFileUploadProps> = ({ onAnalysisComplete }) => {
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>({
     isUploading: false,
     progress: 0,
@@ -49,6 +55,19 @@ export const ForensicFileUpload: React.FC = () => {
     formData.append('file', file);
 
     try {
+      // Check if backend is running
+      try {
+        const healthCheck = await fetch('http://localhost:5000/api/status', {
+          method: 'GET',
+          signal: AbortSignal.timeout(5000),
+        });
+        if (!healthCheck.ok) {
+          throw new Error('Backend server not responding correctly');
+        }
+      } catch (e) {
+        throw new Error('Backend server is not running on http://localhost:5000. Please start the Flask app with: python forensic_web_app.py');
+      }
+
       // Upload to Flask backend
       const response = await fetch('http://localhost:5000/api/upload', {
         method: 'POST',
@@ -56,11 +75,18 @@ export const ForensicFileUpload: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Upload failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Upload failed with status ${response.status}`);
       }
 
       const uploadData = await response.json();
       
+      setUploadStatus({
+        isUploading: true,
+        progress: 50,
+        fileName: file.name,
+      });
+
       // Start forensic analysis with the uploaded file path
       const analyzeResponse = await fetch('http://localhost:5000/api/analyze', {
         method: 'POST',
@@ -73,11 +99,50 @@ export const ForensicFileUpload: React.FC = () => {
       });
 
       if (!analyzeResponse.ok) {
-        throw new Error('Failed to start analysis');
+        const errorData = await analyzeResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to start analysis');
       }
 
       const analyzeData = await analyzeResponse.json();
       
+      setUploadStatus({
+        isUploading: true,
+        progress: 60,
+        fileName: file.name,
+      });
+
+      // Poll analysis status until complete (vectorization happens server-side)
+      const analysisId = analyzeData.analysis_id;
+      if (analysisId) {
+        let done = false;
+        while (!done) {
+          await new Promise((r) => setTimeout(r, 1000));
+          try {
+            const statusRes = await fetch(`http://localhost:5000/api/analysis/${analysisId}/status`);
+            if (statusRes.ok) {
+              const statusData = await statusRes.json();
+              // Map backend 0-100 to frontend 50-99 (upload = first 50%)
+              const backendPct = statusData.progress || 0;
+              const p = Math.min(99, 50 + Math.round(backendPct * 0.49));
+              setUploadStatus({
+                isUploading: true,
+                progress: p,
+                fileName: file.name,
+                message: statusData.message || 'Analyzing...',
+              });
+              if (statusData.status === 'completed') {
+                done = true;
+              } else if (statusData.status === 'error') {
+                throw new Error(statusData.message || 'Analysis failed');
+              }
+            }
+          } catch (pollErr) {
+            if (pollErr instanceof Error && pollErr.message.includes('Analysis failed')) throw pollErr;
+            // Network hiccup — keep polling
+          }
+        }
+      }
+
       setUploadStatus({
         isUploading: false,
         progress: 100,
@@ -95,12 +160,26 @@ export const ForensicFileUpload: React.FC = () => {
           } 
         }));
         setShowDownloadMenu(true);
+
+        // Auto-navigate to Analysis tab (RAG chatbot) with result data
+        if (onAnalysisComplete) {
+          onAnalysisComplete({
+            analysisId: analyzeData.analysis_id || analysisId || '',
+            fileName: file.name,
+            timestamp: new Date().toISOString(),
+            status: 'completed',
+            progress: 100,
+            results: analyzeData,
+          });
+        }
       }, 500);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Upload error:', errorMessage);
       setUploadStatus({
         isUploading: false,
         progress: 0,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
       });
     }
   };
@@ -166,6 +245,9 @@ export const ForensicFileUpload: React.FC = () => {
             ></div>
           </div>
           <p className="text-center text-gray-400 text-sm mt-2">{uploadStatus.progress}%</p>
+          {uploadStatus.message && (
+            <p className="text-center text-gray-500 text-xs mt-1 italic">{uploadStatus.message}</p>
+          )}
         </div>
       )}
 

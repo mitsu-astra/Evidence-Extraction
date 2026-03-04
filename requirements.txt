@@ -1,0 +1,47 @@
+# ============================================================
+# FORENSIC ANALYSIS PLATFORM — Python Requirements
+# ============================================================
+# Install all core dependencies with:
+#   pip install -r requirements.txt
+#
+# For the optional forensic disk-image libraries see the
+# "Optional / Native Compilation" section at the bottom.
+# ============================================================
+
+# ── Web Framework ────────────────────────────────────────────
+Flask>=2.3.0
+flask-cors>=4.0.0
+Werkzeug>=2.3.0
+
+# ── HTTP Client ──────────────────────────────────────────────
+requests>=2.31.0
+
+# ── Report Export (PDF + DOCX) ───────────────────────────────
+reportlab>=4.0.4
+python-docx>=0.8.11
+
+# ── RAG / AI Engine ──────────────────────────────────────────
+# Vector store
+chromadb>=0.5.0
+
+# Local embedding model (downloads ~90 MB model on first run)
+sentence-transformers>=3.0.0
+
+# Numerical computing (required by sentence-transformers)
+numpy>=1.26.0
+
+# ── Optional / Native Compilation ────────────────────────────
+# These packages require native libraries to be compiled first.
+# Uncomment AFTER completing the build-tool setup described below.
+#
+# pytsk3  —  low-level disk / filesystem parsing (The Sleuth Kit)
+#   Requires: Microsoft C++ Build Tools
+#   Download: https://visualstudio.microsoft.com/visual-cpp-build-tools/
+#   Then run:  pip install pytsk3
+# pytsk3>=20231007
+#
+# pyewf  —  read EnCase .E01 evidence images
+#   Requires: libewf compiled from source (or pre-built binaries)
+#   Guide:    https://github.com/libyal/libewf/blob/main/documentation/Building.md
+#   Then run:  pip install pyewf
+# pyewf>=20231119

@@ -1,10 +1,9 @@
 /* App Styles - Halide Theme */
-@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
 
 :root {
   --bg: #0a0a0a;
   --silver: #e0e0e0;
-  --accent: #ff3c00;
+  --accent: #7a0c16;
   --grain-opacity: 0.1;
 }
 
@@ -33,21 +32,57 @@ body {
   width: 100%;
 }
 
-/* Smooth transitions */
-* {
-  transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
-}
-
 /* Button styles */
 button {
   cursor: pointer;
   border: none;
   font-family: 'Courier Prime', monospace;
+  transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, border 0.3s ease;
 }
 
 button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+/* ===== Forensic Primary Button ===== */
+button.primary {
+  padding: 14px 42px;
+  border-radius: 40px;
+  background: #1c1f26;
+  color: var(--silver);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+}
+
+button.primary:hover {
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 0 18px rgba(122, 12, 22, 0.6);
+}
+
+/* Subtle controlled drip effect */
+button.primary::after {
+  content: "";
+  position: absolute;
+  bottom: -18px;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  background:
+    radial-gradient(circle at 25% 0%, #5a0a12 45%, transparent 46%),
+    radial-gradient(circle at 60% 0%, #5a0a12 45%, transparent 46%),
+    radial-gradient(circle at 85% 0%, #5a0a12 45%, transparent 46%);
+  opacity: 0;
+  transition: all 0.4s ease;
+}
+
+button.primary:hover::after {
+  bottom: -5px;
+  opacity: 1;
 }
 
 /* Input styles */
@@ -125,12 +160,8 @@ a:hover {
 
 /* Animation utilities */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes slideDown {
@@ -145,15 +176,9 @@ a:hover {
 }
 
 @keyframes glitch {
-  0% {
-    text-shadow: 0 0 10px rgba(255, 60, 0, 0.5);
-  }
-  50% {
-    text-shadow: 0 0 20px rgba(255, 60, 0, 0.8);
-  }
-  100% {
-    text-shadow: 0 0 10px rgba(255, 60, 0, 0.5);
-  }
+  0% { text-shadow: 0 0 10px rgba(122, 12, 22, 0.5); }
+  50% { text-shadow: 0 0 20px rgba(122, 12, 22, 0.8); }
+  100% { text-shadow: 0 0 10px rgba(122, 12, 22, 0.5); }
 }
 
 .fade-in {

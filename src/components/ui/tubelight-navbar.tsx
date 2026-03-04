@@ -14,10 +14,17 @@ interface NavItem {
 interface NavBarProps {
   items: NavItem[]
   className?: string
+  activeTab?: string
+  onTabChange?: (tab: string) => void
 }
 
-export function NavBar({ items, className }: NavBarProps) {
-  const [activeTab, setActiveTab] = useState(items[0].name)
+export function NavBar({ items, className, activeTab: controlledTab, onTabChange }: NavBarProps) {
+  const [internalTab, setInternalTab] = useState(items[0].name)
+  const activeTab = controlledTab ?? internalTab
+  const setActiveTab = (tab: string) => {
+    setInternalTab(tab)
+    onTabChange?.(tab)
+  }
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {

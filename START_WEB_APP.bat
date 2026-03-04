@@ -1,103 +1,105 @@
 @echo off
-REM Forensic Web Application - Quick Start Script
-REM This script sets up and runs the modern forensic analysis platform
+chcp 65001 >nul
+title FORENSIC PLATFORM LAUNCHER
 
 echo.
-echo ╔════════════════════════════════════════════════════════════════════════════════╗
-echo ║                                                                                ║
-echo ║            FORENSIC ANALYSIS WEB APPLICATION - QUICK START                    ║
-echo ║                      Modern Futuristic Platform                               ║
-echo ║                                                                                ║
-echo ╚════════════════════════════════════════════════════════════════════════════════╝
+echo  ============================================================
+echo   FORENSIC ANALYSIS PLATFORM - UNIFIED LAUNCHER
+echo   Backend: Flask (WSL)  +  Frontend: Vite (Windows)
+echo  ============================================================
 echo.
 
-REM Check if Python is installed
-python --version >nul 2>&1
+REM ── Go to the folder where this .bat lives ───────────────────
+cd /d "%~dp0"
+
+REM ────────────────────────────────────────────────────────────
+REM  STEP 1 - WSL check
+REM ────────────────────────────────────────────────────────────
+echo [1/4] Checking WSL...
+wsl echo ok >nul 2>&1
 if errorlevel 1 (
-    echo ❌ ERROR: Python is not installed or not in PATH
     echo.
-    echo Please install Python from: https://www.python.org/downloads/
-    echo Make sure to check "Add Python to PATH" during installation
+    echo  [FAIL] WSL not found.
+    echo  Fix : Open PowerShell as Admin and run:  wsl --install
+    echo  Then restart your PC and try again.
+    echo.
     pause
     exit /b 1
 )
+echo  [OK] WSL is running.
 
-echo ✓ Python detected
+REM Use PowerShell to write the WSL-format path to a temp file
+powershell -NoProfile -Command ^
+  "$p = '%~dp0'.TrimEnd('\'); $d = $p[0].ToString().ToLower(); $r = $p.Substring(2).Replace('\','/'); [IO.File]::WriteAllText('%TEMP%\__wslpath.txt', '/mnt/' + $d + $r)"
+set /p PROJECT_WSL= < "%TEMP%\__wslpath.txt"
+del "%TEMP%\__wslpath.txt" >nul 2>&1
+
+echo  [OK] WSL project path: %PROJECT_WSL%
 echo.
 
-REM Navigate to project directory
-cd /d "D:\Forensics Application"
+REM ────────────────────────────────────────────────────────────
+REM  STEP 2 - Node.js check
+REM ────────────────────────────────────────────────────────────
+echo [2/4] Checking Node.js...
+where node >nul 2>&1
 if errorlevel 1 (
-    echo ❌ ERROR: Cannot navigate to D:\Forensics Application
+    echo.
+    echo  [FAIL] Node.js not found.
+    echo  Download from: https://nodejs.org/
+    echo.
     pause
     exit /b 1
 )
+for /f "tokens=*" %%v in ('node --version') do echo  [OK] Node.js %%v
+echo.
 
-REM Check if virtual environment exists
-if not exist ".venv" (
-    echo [1/4] Creating virtual environment...
-    python -m venv .venv
+REM ────────────────────────────────────────────────────────────
+REM  STEP 3 - npm install (only if node_modules is missing)
+REM ────────────────────────────────────────────────────────────
+echo [3/4] Checking node_modules...
+if not exist "node_modules\" (
+    echo  node_modules missing - running npm install...
+    npm install
     if errorlevel 1 (
-        echo ❌ ERROR: Failed to create virtual environment
+        echo.
+        echo  [FAIL] npm install failed. See errors above.
+        echo.
         pause
         exit /b 1
     )
-    echo ✓ Virtual environment created
+    echo  [OK] npm install done.
 ) else (
-    echo ✓ Virtual environment already exists
+    echo  [OK] node_modules already present.
 )
+echo.
+
+REM ────────────────────────────────────────────────────────────
+REM  STEP 4 - Launch both services
+REM ────────────────────────────────────────────────────────────
+echo [4/4] Launching services...
+echo.
+
+echo  Starting Flask backend in WSL...
+start "Flask Backend [WSL]" wsl bash -c "cd '%PROJECT_WSL%' && source venv_linux/bin/activate && python forensic_web_app.py; exec bash"
+
+echo  Waiting 3 seconds before starting frontend...
+timeout /t 3 /nobreak >nul
+
+echo  Starting React/Vite frontend...
+start "React Frontend [Windows]" cmd /k "npm run dev"
 
 echo.
-echo [2/4] Activating virtual environment...
-call .venv\Scripts\Activate.bat
-echo ✓ Virtual environment activated
+echo  ============================================================
+echo   Both services launched:
+echo     Flask backend  >>  http://localhost:5000
+echo     Vite frontend  >>  http://localhost:5173
+echo  ============================================================
+echo.
+echo  Opening browser in 5 seconds...
+timeout /t 5 /nobreak >nul
+start http://localhost:5173
 
 echo.
-echo [3/4] Installing dependencies...
-echo (This may take 1-2 minutes on first run)
+echo  Done! Close the Flask and Vite windows to stop the app.
 echo.
-pip install -r requirements_web.txt --quiet
-if errorlevel 1 (
-    echo ❌ ERROR: Failed to install dependencies
-    echo.
-    echo If pytsk3 failed, install Microsoft C++ Build Tools:
-    echo https://visualstudio.microsoft.com/downloads/
-    echo.
-    pause
-    exit /b 1
-)
-echo ✓ Dependencies installed successfully
-
-echo.
-echo [4/4] Starting Forensic Web Application...
-echo.
-echo.
-echo ════════════════════════════════════════════════════════════════════════════════
-echo.
-echo ✓ Web Application Starting...
-echo.
-echo   🌐 Frontend: http://localhost:5000
-echo   📊 Backend:  Flask Server (localhost:5000)
-echo   📁 Reports:  D:\Forensics Application\analysis_output\
-echo.
-echo   Opening browser in 3 seconds...
-echo.
-timeout /t 3 /nobreak
-
-REM Open browser
-start http://localhost:5000
-
-REM Start Flask app
-python forensic_web_app.py
-
-if errorlevel 1 (
-    echo.
-    echo ❌ ERROR: Failed to start Flask application
-    echo.
-    echo Possible issues:
-    echo - Port 5000 is already in use
-    echo - Flask not installed correctly
-    echo - Missing required files
-    echo.
-    pause
-)
+pause

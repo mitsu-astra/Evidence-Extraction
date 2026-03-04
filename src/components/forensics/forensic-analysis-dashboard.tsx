@@ -1,29 +1,75 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import type { AnalysisResultData } from '../../App';
 
 interface AnalysisResult {
   id: string;
   fileName: string;
   status: 'analyzing' | 'completed' | 'error';
   progress: number;
+  message?: string;
   summary?: {
     totalFiles: number;
     recoveredFiles: number;
     deletedFiles: number;
+    suspiciousFiles: number;
+    encryptedItems: number;
+    networkArtifacts: number;
     filesbyType: Record<string, number>;
   };
   error?: string;
   timestamp: string;
 }
 
+interface ForensicAnalysisDashboardProps {
+  analysisResult?: AnalysisResultData | null;
+}
+
 /**
  * Forensic Analysis Dashboard Component
  * Displays real-time analysis progress and results
  */
-export const ForensicAnalysisDashboard: React.FC = () => {
+export const ForensicAnalysisDashboard: React.FC<ForensicAnalysisDashboardProps> = ({ analysisResult }) => {
   const [analyses, setAnalyses] = useState<AnalysisResult[]>([]);
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisResult | null>(null);
   const [isPolling, setIsPolling] = useState(false);
+  const [detailedResults, setDetailedResults] = useState<any>(null);
+
+  // When parent passes a completed analysis result, fetch full data from backend
+  useEffect(() => {
+    if (!analysisResult || analysisResult.status !== 'completed') return;
+    (async () => {
+      try {
+        const res = await fetch('http://localhost:5000/api/results');
+        if (!res.ok) return;
+        const data = await res.json();
+        setDetailedResults(data);
+        // Build a display-friendly object
+        const display: AnalysisResult = {
+          id: analysisResult.analysisId,
+          fileName: analysisResult.fileName,
+          status: 'completed',
+          progress: 100,
+          timestamp: analysisResult.timestamp,
+          summary: {
+            totalFiles: data.summary?.total_files || 0,
+            recoveredFiles: data.summary?.total_files || 0,
+            deletedFiles: data.summary?.total_deleted_files || 0,
+            suspiciousFiles: data.summary?.suspicious_files_count || 0,
+            encryptedItems: data.summary?.encrypted_items_count || 0,
+            networkArtifacts: data.summary?.network_artifacts_count || 0,
+            filesbyType: data.extensions || {},
+          },
+        };
+        setSelectedAnalysis(display);
+        setAnalyses((prev) => {
+          const exists = prev.find((a) => a.id === display.id);
+          if (exists) return prev.map((a) => (a.id === display.id ? display : a));
+          return [display, ...prev];
+        });
+      } catch { /* backend offline */ }
+    })();
+  }, [analysisResult]);
 
   useEffect(() => {
     // Listen for file upload events
@@ -114,7 +160,7 @@ export const ForensicAnalysisDashboard: React.FC = () => {
           )}
 
           {selectedAnalysis.status === 'completed' && selectedAnalysis.summary && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <div className="bg-gray-800 p-4 rounded">
                 <p className="text-gray-400 text-sm">Total Files</p>
                 <p className="text-2xl font-bold text-white">
@@ -122,15 +168,27 @@ export const ForensicAnalysisDashboard: React.FC = () => {
                 </p>
               </div>
               <div className="bg-gray-800 p-4 rounded">
-                <p className="text-gray-400 text-sm">Recovered Files</p>
-                <p className="text-2xl font-bold text-green-400">
-                  {selectedAnalysis.summary.recoveredFiles}
-                </p>
-              </div>
-              <div className="bg-gray-800 p-4 rounded">
                 <p className="text-gray-400 text-sm">Deleted Files</p>
                 <p className="text-2xl font-bold text-red-400">
                   {selectedAnalysis.summary.deletedFiles}
+                </p>
+              </div>
+              <div className="bg-gray-800 p-4 rounded">
+                <p className="text-gray-400 text-sm">Suspicious Files</p>
+                <p className="text-2xl font-bold text-yellow-400">
+                  {selectedAnalysis.summary.suspiciousFiles}
+                </p>
+              </div>
+              <div className="bg-gray-800 p-4 rounded">
+                <p className="text-gray-400 text-sm">Encrypted Items</p>
+                <p className="text-2xl font-bold text-purple-400">
+                  {selectedAnalysis.summary.encryptedItems}
+                </p>
+              </div>
+              <div className="bg-gray-800 p-4 rounded">
+                <p className="text-gray-400 text-sm">Network Artifacts</p>
+                <p className="text-2xl font-bold text-blue-400">
+                  {selectedAnalysis.summary.networkArtifacts}
                 </p>
               </div>
               <div className="bg-gray-800 p-4 rounded">

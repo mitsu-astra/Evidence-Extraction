@@ -326,123 +326,213 @@ class ForensicAnalyzer:
             traceback.print_exc()
             return False
     
+    def _call_ollama(self, prompt: str, model: str = "llama3", timeout: int = 180) -> str:
+        """
+        Call a local Ollama instance to generate text.
+        Returns the generated text, or empty string on failure.
+        """
+        import requests
+        try:
+            print(f"[*] Querying Ollama ({model}) …")
+            resp = requests.post(
+                "http://localhost:11434/api/generate",
+                json={"model": model, "prompt": prompt, "stream": False},
+                timeout=timeout,
+            )
+            if resp.status_code == 200:
+                text = resp.json().get("response", "").strip()
+                if text:
+                    print(f"[+] Ollama returned {len(text)} chars.")
+                    return text
+                print("[!] Ollama returned empty response — using rule-based fallback.")
+            else:
+                print(f"[!] Ollama returned status {resp.status_code} — using rule-based fallback.")
+        except requests.ConnectionError:
+            print("[!] Ollama not reachable at localhost:11434 — using rule-based fallback.")
+        except Exception as exc:
+            print(f"[!] Ollama error: {exc} — using rule-based fallback.")
+        return ""
+
+    def _build_data_facts(self, forensic_data: dict) -> str:
+        """Build a concise, fact-only summary string for LLM prompts."""
+        partition_info = forensic_data.get('partition_info', {})
+        file_summary = forensic_data.get('summary', {})
+        files = forensic_data.get('files', {})
+        extensions = forensic_data.get('file_extension_statistics', {})
+        encrypted = forensic_data.get('encrypted_items', [])
+        network = forensic_data.get('network_artifacts', [])
+
+        suspicious_extensions = ['.exe', '.bat', '.ps1', '.dll', '.scr', '.vbs', '.js']
+        suspicious_files = [
+            f for f in files.values()
+            if any(f['name'].lower().endswith(ext) for ext in suspicious_extensions)
+        ]
+        deleted_files = [f for f in files.values() if f.get('is_deleted')]
+
+        lines = [
+            f"Image path: {forensic_data.get('image_path', 'N/A')}",
+            f"Scan timestamp: {forensic_data.get('scan_timestamp', 'N/A')}",
+            f"Filesystem type: {partition_info.get('filesystem_type', 'Unknown')}",
+            f"Block size: {partition_info.get('block_size', 'Unknown')} bytes",
+            f"Block count: {partition_info.get('block_count', 'Unknown')}",
+            f"Total partitions: {file_summary.get('total_partitions', 0)}",
+            f"Total files: {file_summary.get('total_files', 0)}",
+            f"Deleted files: {file_summary.get('total_deleted_files', 0)}",
+            f"Suspicious files (by extension): {len(suspicious_files)}",
+            f"Encrypted items: {file_summary.get('encrypted_items_count', len(encrypted))}",
+            f"Network artifacts: {file_summary.get('network_artifacts_count', len(network))}",
+        ]
+
+        # Top extensions
+        top_ext = sorted(extensions.items(), key=lambda x: x[1], reverse=True)[:10]
+        if top_ext:
+            lines.append("Top file extensions: " + ", ".join(f"{e} ({c})" for e, c in top_ext))
+
+        # Suspicious file names
+        if suspicious_files:
+            lines.append("Suspicious file names: " + ", ".join(f['name'] for f in suspicious_files[:15]))
+
+        # Deleted file names
+        if deleted_files:
+            lines.append("Deleted file names (top 10): " + ", ".join(
+                f['name'] for f in sorted(deleted_files, key=lambda x: x['modification_time'], reverse=True)[:10]
+            ))
+
+        # Encrypted item names
+        if encrypted:
+            lines.append("Encrypted item names: " + ", ".join(i['name'] for i in encrypted[:10]))
+
+        # Network artifact names
+        if network:
+            lines.append("Network artifact names: " + ", ".join(i['name'] for i in network[:10]))
+
+        return "\n".join(lines)
+
     def generate_summary_from_model(self, json_data: str) -> str:
         """
         Generate a human-readable forensic summary from JSON data.
-        
-        This function demonstrates a placeholder for local LLM integration.
-        In production, this would call a local LLM API (e.g., Ollama, LLaMA.cpp).
-        
+        Tries Ollama/Llama 3 first; falls back to a structured rule-based summary.
+
         Args:
             json_data: JSON data as string
-            
+
         Returns:
             str: Summary text
         """
-        # =====================================================================
-        # PLACEHOLDER: Local LLM Integration
-        # =====================================================================
-        # To integrate with a local LLM (e.g., Ollama), uncomment below:
-        # 
-        # import requests
-        # 
-        # try:
-        #     response = requests.post(
-        #         'http://localhost:11434/api/generate',  # Ollama API endpoint
-        #         json={
-        #             'model': 'llama2',
-        #             'prompt': f"Analyze this forensic data and provide insights:\n{json_data}",
-        #             'stream': False
-        #         },
-        #         timeout=60
-        #     )
-        #     if response.status_code == 200:
-        #         return response.json().get('response', 'Error: Empty response')
-        #     else:
-        #         return f"Error: API returned {response.status_code}"
-        # except Exception as e:
-        #     return f"Error calling local LLM: {str(e)}"
-        # =====================================================================
-        
-        # Generate a structured summary from the metadata
         try:
             data = json.loads(json_data)
             forensic_data = data['forensic_report']
-            
-            summary = "=" * 70 + "\n"
-            summary += "FORENSIC ANALYSIS REPORT\n"
-            summary += "=" * 70 + "\n\n"
-            
-            summary += f"Image Path: {forensic_data['image_path']}\n"
-            summary += f"Scan Timestamp: {forensic_data['scan_timestamp']}\n\n"
-            
-            summary += "FILESYSTEM INFORMATION:\n"
-            summary += "-" * 70 + "\n"
-            partition_info = forensic_data['partition_info']
-            summary += f"Filesystem Type: {partition_info.get('filesystem_type', 'Unknown')}\n"
-            summary += f"Block Size: {partition_info.get('block_size', 'Unknown')} bytes\n"
-            summary += f"Block Count: {partition_info.get('block_count', 'Unknown')}\n\n"
-            
-            summary += "FILE STATISTICS:\n"
-            summary += "-" * 70 + "\n"
-            file_summary = forensic_data['summary']
-            summary += f"Total Partitions: {file_summary['total_partitions']}\n"
-            summary += f"Total Files: {file_summary['total_files']}\n"
-            summary += f"Deleted Files: {file_summary['total_deleted_files']}\n\n"
-            
-            # Find largest file
-            files = forensic_data['files']
-            if files:
-                largest_file = max(files.values(), key=lambda x: x['size'])
-                summary += "LARGEST FILE:\n"
-                summary += "-" * 70 + "\n"
-                summary += f"Name: {largest_file['name']}\n"
-                summary += f"Path: {largest_file['path']}\n"
-                summary += f"Size: {largest_file['size']:,} bytes\n\n"
-            
-            # Find suspicious files by extension
-            suspicious_extensions = ['.exe', '.bat', '.ps1', '.dll', '.scr', '.vbs', '.js']
-            suspicious_files = [
-                f for f in files.values()
-                if any(f['name'].lower().endswith(ext) for ext in suspicious_extensions)
-            ]
-            
-            summary += "SUSPICIOUS FILES (by extension):\n"
-            summary += "-" * 70 + "\n"
-            if suspicious_files:
-                summary += f"Found {len(suspicious_files)} suspicious files:\n\n"
-                for f in sorted(suspicious_files, key=lambda x: x['size'], reverse=True)[:20]:
-                    summary += f"  Name: {f['name']}\n"
-                    summary += f"  Path: {f['path']}\n"
-                    summary += f"  Size: {f['size']:,} bytes\n"
-                    summary += f"  Modified: {f['modification_time']}\n"
-                    summary += f"  Deleted: {'Yes' if f['is_deleted'] else 'No'}\n\n"
-            else:
-                summary += "No suspicious files detected.\n\n"
-            
-            # Deleted files analysis
-            deleted_files = [f for f in files.values() if f['is_deleted']]
-            summary += "DELETED FILES:\n"
-            summary += "-" * 70 + "\n"
-            if deleted_files:
-                summary += f"Found {len(deleted_files)} deleted files.\n"
-                summary += "Top 10 by modification date:\n\n"
-                for f in sorted(deleted_files, key=lambda x: x['modification_time'], reverse=True)[:10]:
-                    summary += f"  Name: {f['name']}\n"
-                    summary += f"  Path: {f['path']}\n"
-                    summary += f"  Size: {f['size']:,} bytes\n"
-                    summary += f"  Modified: {f['modification_time']}\n\n"
-            else:
-                summary += "No deleted files detected.\n\n"
-            
-            summary += "=" * 70 + "\n"
-            summary += "END OF REPORT\n"
-            summary += "=" * 70 + "\n"
-            
-            return summary
-            
         except Exception as e:
-            return f"Error generating summary: {str(e)}"
+            return f"Error parsing JSON data: {str(e)}"
+
+        # ── Try LLM-generated summary via Ollama ─────────────────────────
+        data_facts = self._build_data_facts(forensic_data)
+        llm_prompt = (
+            "You are a digital forensics report writer.\n\n"
+            "STRICT RULES:\n"
+            "- ONLY use the facts provided below. Do NOT assume, speculate, or invent any information.\n"
+            "- If a metric is zero, say so. Do NOT fabricate threats or risks that are not in the data.\n"
+            "- Do NOT use markdown formatting. Use plain text with section headers.\n"
+            "- Write in formal, professional forensic report language.\n\n"
+            "Write a structured forensic analysis summary with these sections:\n"
+            "1. EVIDENCE OVERVIEW — what disk image was analyzed, filesystem type, scan timestamp\n"
+            "2. FILE STATISTICS — total files, deleted files, file type distribution\n"
+            "3. SUSPICIOUS FILES — list each suspicious file by name, path, size, and modification date. "
+            "If none were found, state that clearly.\n"
+            "4. DELETED FILES — list recovered deleted files. If none, state that clearly.\n"
+            "5. ENCRYPTED ITEMS — list encrypted items found. If none, state that clearly.\n"
+            "6. NETWORK ARTIFACTS — list network-related artifacts. If none, state that clearly.\n"
+            "7. FINDINGS SUMMARY — brief factual recap. Do NOT speculate on intent or threat level "
+            "unless the data explicitly supports it.\n\n"
+            f"=== DATA (facts only) ===\n{data_facts}\n=== END DATA ==="
+        )
+
+        llm_summary = self._call_ollama(llm_prompt)
+        if llm_summary:
+            # Wrap LLM output in a header/footer
+            result = "=" * 70 + "\n"
+            result += "FORENSIC ANALYSIS REPORT  (Generated by Llama 3)\n"
+            result += "=" * 70 + "\n\n"
+            result += llm_summary + "\n\n"
+            result += "=" * 70 + "\n"
+            result += "END OF REPORT\n"
+            result += "=" * 70 + "\n"
+            return result
+
+        # ── Fallback: rule-based structured summary ──────────────────────
+        print("[*] Generating rule-based summary …")
+        partition_info = forensic_data.get('partition_info', {})
+        file_summary = forensic_data.get('summary', {})
+        files = forensic_data.get('files', {})
+
+        summary = "=" * 70 + "\n"
+        summary += "FORENSIC ANALYSIS REPORT\n"
+        summary += "=" * 70 + "\n\n"
+
+        summary += f"Image Path: {forensic_data.get('image_path', 'N/A')}\n"
+        summary += f"Scan Timestamp: {forensic_data.get('scan_timestamp', 'N/A')}\n\n"
+
+        summary += "FILESYSTEM INFORMATION:\n"
+        summary += "-" * 70 + "\n"
+        summary += f"Filesystem Type: {partition_info.get('filesystem_type', 'Unknown')}\n"
+        summary += f"Block Size: {partition_info.get('block_size', 'Unknown')} bytes\n"
+        summary += f"Block Count: {partition_info.get('block_count', 'Unknown')}\n\n"
+
+        summary += "FILE STATISTICS:\n"
+        summary += "-" * 70 + "\n"
+        summary += f"Total Partitions: {file_summary.get('total_partitions', 0)}\n"
+        summary += f"Total Files: {file_summary.get('total_files', 0)}\n"
+        summary += f"Deleted Files: {file_summary.get('total_deleted_files', 0)}\n\n"
+
+        # Largest file
+        if files:
+            largest_file = max(files.values(), key=lambda x: x['size'])
+            summary += "LARGEST FILE:\n"
+            summary += "-" * 70 + "\n"
+            summary += f"Name: {largest_file['name']}\n"
+            summary += f"Path: {largest_file['path']}\n"
+            summary += f"Size: {largest_file['size']:,} bytes\n\n"
+
+        # Suspicious files
+        suspicious_extensions = ['.exe', '.bat', '.ps1', '.dll', '.scr', '.vbs', '.js']
+        suspicious_files = [
+            f for f in files.values()
+            if any(f['name'].lower().endswith(ext) for ext in suspicious_extensions)
+        ]
+
+        summary += "SUSPICIOUS FILES (by extension):\n"
+        summary += "-" * 70 + "\n"
+        if suspicious_files:
+            summary += f"Found {len(suspicious_files)} suspicious files:\n\n"
+            for f in sorted(suspicious_files, key=lambda x: x['size'], reverse=True)[:20]:
+                summary += f"  Name: {f['name']}\n"
+                summary += f"  Path: {f['path']}\n"
+                summary += f"  Size: {f['size']:,} bytes\n"
+                summary += f"  Modified: {f['modification_time']}\n"
+                summary += f"  Deleted: {'Yes' if f['is_deleted'] else 'No'}\n\n"
+        else:
+            summary += "No suspicious files detected.\n\n"
+
+        # Deleted files
+        deleted_files = [f for f in files.values() if f['is_deleted']]
+        summary += "DELETED FILES:\n"
+        summary += "-" * 70 + "\n"
+        if deleted_files:
+            summary += f"Found {len(deleted_files)} deleted files.\n"
+            summary += "Top 10 by modification date:\n\n"
+            for f in sorted(deleted_files, key=lambda x: x['modification_time'], reverse=True)[:10]:
+                summary += f"  Name: {f['name']}\n"
+                summary += f"  Path: {f['path']}\n"
+                summary += f"  Size: {f['size']:,} bytes\n"
+                summary += f"  Modified: {f['modification_time']}\n\n"
+        else:
+            summary += "No deleted files detected.\n\n"
+
+        summary += "=" * 70 + "\n"
+        summary += "END OF REPORT\n"
+        summary += "=" * 70 + "\n"
+
+        return summary
     
     def save_summary(self, summary_text: str, output_path: str) -> bool:
         """

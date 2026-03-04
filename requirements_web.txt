@@ -4,5 +4,6 @@ flask-cors==4.0.0
 reportlab==4.0.4
 python-docx==0.8.11
 requests==2.31.0
-pytsk3>=20231007
-pyewf
+# pytsk3>=20231007  - requires Microsoft C++ Build Tools to compile
+# pyewf             - requires libewf compilation from source
+# To install these, get C++ Build Tools: https://visualstudio.microsoft.com/visual-cpp-build-tools/

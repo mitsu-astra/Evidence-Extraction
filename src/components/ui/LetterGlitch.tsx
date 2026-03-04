@@ -132,7 +132,7 @@ const LetterGlitch = ({
   const updateLetters = () => {
     if (!letters.current || letters.current.length === 0) return;
 
-    const updateCount = Math.max(1, Math.floor(letters.current.length * 0.05));
+    const updateCount = Math.max(1, Math.floor(letters.current.length * 0.015));
 
     for (let i = 0; i < updateCount; i++) {
       const index = Math.floor(Math.random() * letters.current.length);
@@ -171,7 +171,15 @@ const LetterGlitch = ({
     }
   };
 
+  const smoothFrameSkip = useRef(0);
+  const isVisible = useRef(true);
+
   const animate = () => {
+    if (!isVisible.current) {
+      animationRef.current = requestAnimationFrame(animate);
+      return;
+    }
+
     const now = Date.now();
     if (now - lastGlitchTime.current >= glitchSpeed) {
       updateLetters();
@@ -180,7 +188,10 @@ const LetterGlitch = ({
     }
 
     if (smooth) {
-      handleSmoothTransitions();
+      smoothFrameSkip.current++;
+      if (smoothFrameSkip.current % 3 === 0) {
+        handleSmoothTransitions();
+      }
     }
 
     animationRef.current = requestAnimationFrame(animate);
@@ -202,14 +213,20 @@ const LetterGlitch = ({
         cancelAnimationFrame(animationRef.current as number);
         resizeCanvas();
         animate();
-      }, 100);
+      }, 200);
+    };
+
+    const handleVisibility = () => {
+      isVisible.current = !document.hidden;
     };
 
     window.addEventListener('resize', handleResize);
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       cancelAnimationFrame(animationRef.current!);
       window.removeEventListener('resize', handleResize);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [glitchSpeed, smooth]);

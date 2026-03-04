@@ -1,51 +1,84 @@
-# Python
+# ── Python ───────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+
+# Virtual environments
 .venv/
 venv/
 ENV/
 env/
+forensic-env/
+venv_linux/
+
 *.egg-info/
 dist/
 build/
 
-# Node
+# ── Node / Frontend ──────────────────────────────────────────
 node_modules/
 dist/
 build/
 .vite/
 *.local
 
-# IDE
+# ── IDE ──────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS
+# ── OS ───────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 *.log
 
-# Forensic/Evidence files
+# ── Forensic / Evidence files ────────────────────────────────
+# Never commit actual disk images or evidence files
 *.E01
 *.E02
+*.E0[3-9]
+*.Ex[0-9][0-9]
 *.dd
 *.raw
+*.img
 *.aff
+*.dmg
+*.iso
+*.bin
 
-# Generated reports
+# ── Uploaded evidence (runtime folder) ───────────────────────
+uploads/
+
+# ── Analysis output (generated at runtime) ───────────────────
+analysis_output/
+
+# ── ChromaDB vector store (regenerated on demand) ────────────
+chromadb_store/
+
+# ── Compiled native libraries ────────────────────────────────
+libewf/
+
+# ── Generated forensic reports (root-level quick runs) ───────
 forensic_report*.json
+forensic_report_advanced.json
 forensic_summary*.txt
+forensic_summary_advanced.txt
 forensic_timeline*.txt
+forensic_extensions*.txt
 
-# Lock files (keep package-lock.json but ignore others if needed)
-# package-lock.json
+# ── Sample / demo output files ───────────────────────────────
+sample_forensic_report.json
+sample_forensic_summary.txt
 
-# Environment variables
+# ── Environment variables ────────────────────────────────────
 .env
 .env.local
+.env.*.local
+
+# ── Lock files ───────────────────────────────────────────────
+# Keep package-lock.json so the frontend is reproducible
+# package-lock.json

@@ -149,6 +149,25 @@ class AdvancedForensicAnalyzer:
                 'size': file_data['size']
             })
     
+    # -----------------------------------------------------------------------
+    # EWF (E01) image wrapper — connects pyewf handle to pytsk3
+    # -----------------------------------------------------------------------
+    class EWFImgInfo(pytsk3.Img_Info if HAS_PYTSK3 else object):
+        """Wrapper that feeds a pyewf handle into pytsk3."""
+        def __init__(self, ewf_handle):
+            self._ewf_handle = ewf_handle
+            super().__init__(url="", type=pytsk3.TSK_IMG_TYPE_EXTERNAL)
+
+        def close(self):
+            self._ewf_handle.close()
+
+        def read(self, offset, size):
+            self._ewf_handle.seek(offset)
+            return self._ewf_handle.read(size)
+
+        def get_size(self):
+            return self._ewf_handle.get_media_size()
+
     def open_disk_image(self) -> bool:
         """Open the disk image using pytsk3."""
         try:
@@ -167,22 +186,25 @@ class AdvancedForensicAnalyzer:
                 
                 if file_extension == '.e01':
                     if not HAS_PYEWF:
-                        print(f"[-] .E01 format requires pyewf library")
+                        print(f"[-] .E01 format requires pyewf library", flush=True)
                         return False
-                    print(f"[+] Detected .E01 (Encase) format")
-                    ewf_handle = pyewf.open([self.image_path])
-                    self.img = pytsk3.Img_open_file_io(ewf_handle)
+                    print(f"[+] Detected .E01 (Encase) format", flush=True)
+                    # Correct pyewf + pytsk3 integration
+                    filenames = pyewf.glob(self.image_path)
+                    ewf_handle = pyewf.handle()
+                    ewf_handle.open(filenames)
+                    self.img = self.EWFImgInfo(ewf_handle)
                 else:
-                    print(f"[+] Detected RAW format")
-                    self.img = pytsk3.Img_open(self.image_path)
+                    print(f"[+] Detected RAW format", flush=True)
+                    self.img = pytsk3.Img_Info(self.image_path)
                 
-                print(f"[+] Successfully opened disk image")
+                print(f"[+] Successfully opened disk image", flush=True)
             else:
-                print(f"[*] Running in DEMO mode with simulated data")
+                print(f"[*] Running in DEMO mode with simulated data", flush=True)
             
             return True
         except Exception as e:
-            print(f"[-] Error opening disk image: {str(e)}")
+            print(f"[-] Error opening disk image: {str(e)}", flush=True)
             traceback.print_exc()
             return False
     
