@@ -1,0 +1,1064 @@
+================================================================================
+                    FORENSIC ANALYSIS PLATFORM — PROJECT WORKFLOW
+                         Complete Technical Documentation
+                           Generated: March 2026
+================================================================================
+
+
+================================================================================
+  1. PROJECT OVERVIEW
+================================================================================
+
+Project Name   : Forensic Analysis Platform
+Version        : 2.1.0
+Purpose        : A full-stack web application for digital forensic disk-image
+                 analysis. Users upload evidence files (RAW, DD, E01, IMG, ISO),
+                 the backend extracts file-system artifacts, and a RAG-powered
+                 AI chatbot lets investigators query the findings in natural
+                 language. Professional PDF and DOCX reports are generated with
+                 optional LLM-written executive summaries.
+
+Key capabilities:
+  - Upload and parse forensic disk images (.raw, .dd, .e01, .img, .iso, .bin, .dmg)
+  - Recursive file-system scanning (NTFS, FAT32, ext4, etc.)
+  - SHA-256 hash computation for every extracted file
+  - Suspicious-file detection (executables, scripts, DLLs)
+  - Deleted-file recovery metadata
+  - Encryption detection (TrueCrypt, VeraCrypt, BitLocker, LUKS, PGP)
+  - Network artifact extraction (hosts file, browser data, temp files)
+  - Timeline generation (chronological modification events)
+  - PDF and DOCX professional report export with LLM-generated narratives
+  - RAG chatbot (ChromaDB + sentence-transformers + Llama 3 via Ollama)
+  - Demo mode (no pytsk3/pyewf required) for testing and development
+
+
+================================================================================
+  2. ARCHITECTURE
+================================================================================
+
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │                          FRONTEND (Client)                              │
+  │  React 18 + TypeScript + Vite 5 + Tailwind CSS 3 + Framer Motion       │
+  │  Served at: http://localhost:5173 (dev) or static build                 │
+  └────────────────────────────────┬─────────────────────────────────────────┘
+                                   │ HTTP (fetch API)
+                                   │ /api/* endpoints
+                                   ▼
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │                          BACKEND (Server)                               │
+  │  Python 3 + Flask 2.3 + flask-cors                                     │
+  │  Served at: http://127.0.0.1:5000                                      │
+  │                                                                        │
+  │  ┌─────────────────────┐   ┌─────────────────────────┐                 │
+  │  │ forensic_web_app.py │──>│ forensic_pipeline_adv.py │                │
+  │  │ (Flask routes, PDF, │   │ (pytsk3/pyewf parsing,   │                │
+  │  │  DOCX generation)   │   │  hashing, detection)     │                │
+  │  └─────────┬───────────┘   └──────────────────────────┘                │
+  │            │                                                            │
+  │            ▼                                                            │
+  │  ┌─────────────────────┐                                               │
+  │  │   rag_engine.py     │──> ChromaDB (vector store)                    │
+  │  │   (chunking, embed, │──> sentence-transformers (local embeddings)   │
+  │  │    retrieval, LLM)  │──> Ollama / Llama 3 (local LLM, optional)    │
+  │  └─────────────────────┘                                               │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+Frontend framework   : React 18 with TypeScript, bundled by Vite 5
+Styling              : Tailwind CSS 3 + custom Halide design system (dark forensic theme)
+Animations           : Framer Motion (navbar transitions), Canvas API (LetterGlitch bg)
+Icons                : Lucide React
+Backend framework    : Flask 2.3 with flask-cors for CORS
+AI/LLM               : Llama 3 via Ollama (localhost:11434) — optional, falls back to rule-based
+Embedding model      : sentence-transformers "all-MiniLM-L6-v2" (384-dim, runs locally)
+Vector database      : ChromaDB (PersistentClient, cosine similarity)
+Disk image parsing   : pytsk3 (The Sleuth Kit bindings) + pyewf (EnCase E01 format)
+Report generation    : reportlab (PDF) + python-docx (DOCX)
+
+Communication:
+  - Frontend (Vite dev server :5173) proxies /api/* to Flask (:5000)
+  - All API calls use the browser's native fetch() — no axios dependency
+  - CORS configured for localhost:5173, localhost:3000, and 127.0.0.1 variants
+  - File uploads sent as multipart/form-data via POST /api/upload
+  - Analysis runs in a background Python thread; frontend polls GET /api/analysis/{id}/status
+  - RAG chat uses POST /api/rag/chat with JSON body { query, top_k, use_llm }
+
+
+================================================================================
+  3. FOLDER STRUCTURE
+================================================================================
+
+Evidence-Extraction/
+│
+├── forensic_web_app.py            Flask web server, all API routes, PDF/DOCX gen
+├── forensic_pipeline_advanced.py  Core forensic engine (pytsk3/pyewf + demo mode)
+├── forensic_pipeline.py           Basic forensic engine (pytsk3 only, no demo)
+├── forensic_pipeline_demo.py      Standalone demo engine (no native libs needed)
+├── rag_engine.py                  RAG pipeline (chunk, embed, retrieve, LLM)
+│
+├── src/                           React frontend source (TypeScript)
+│   ├── main.tsx                   React entry point (mounts <App /> into DOM)
+│   ├── App.tsx                    Root component: routing, page layout, state
+│   ├── App.css                    App-level styles (crimson theme, animations)
+│   ├── index.css                  Global styles (Halide design system, Tailwind)
+│   ├── lib/
+│   │   └── utils.ts               cn() utility (clsx + tailwind-merge)
+│   └── components/
+│       ├── forensics/
+│       │   ├── forensic-analysis-hero.tsx    Landing page (3D parallax hero)
+│       │   ├── forensic-file-upload.tsx      File upload + analysis trigger
+│       │   ├── forensic-analysis-dashboard.tsx  Real-time analysis results
+│       │   ├── forensic-rag-chat.tsx         RAG chatbot interface
+│       │   ├── forensic-report-viewer.tsx    Report viewer with tabs
+│       │   └── navbar.tsx                    Cyberpunk-themed top navbar
+│       └── ui/
+│           ├── tubelight-navbar.tsx   Floating pill navbar (Framer Motion)
+│           ├── LetterGlitch.tsx       Canvas glitch animation background
+│           ├── halide-topo-hero.tsx    Halide design demo component
+│           ├── ColorPicker.tsx        Color picker utility
+│           └── demo.tsx               Interactive counter demo
+│
+├── templates/
+│   └── index.html                 Flask fallback HTML template
+│
+├── public/
+│   └── background.jpg             Static background image asset
+│
+├── uploads/                       Uploaded disk images stored here (runtime)
+├── analysis_output/               Generated reports stored here (runtime)
+│   ├── {timestamp}_report.json    Full JSON analysis data
+│   ├── {timestamp}_summary.txt    Human-readable text summary
+│   ├── {timestamp}_timeline.txt   Chronological event timeline
+│   ├── {timestamp}_extensions.txt File extension distribution
+│   ├── {timestamp}_report.pdf     Professional PDF report (on demand)
+│   └── {timestamp}_report.docx    Professional DOCX report (on demand)
+│
+├── chromadb_store/                ChromaDB vector database (embeddings, runtime)
+├── libewf/                        Pre-compiled libewf binaries (if available)
+│
+├── index.html                     Vite HTML entry point (loads src/main.tsx)
+├── vite.config.ts                 Vite bundler configuration + API proxy
+├── tsconfig.json                  TypeScript compiler configuration
+├── tsconfig.node.json             TypeScript config for Node-side tooling
+├── tailwind.config.js             Tailwind CSS configuration
+├── postcss.config.js              PostCSS configuration (Tailwind + autoprefixer)
+├── package.json                   NPM dependencies and scripts
+├── package-lock.json              NPM lockfile (reproducible installs)
+├── components.json                shadcn/ui component configuration
+│
+├── requirements.txt               Python dependencies (pip install)
+├── requirements_web.txt           Legacy/alternate Python requirements
+│
+├── .gitignore                     Git ignore rules
+├── INSTALL.bat                    Windows batch installer
+├── START_WEB_APP.bat              Windows batch launcher
+├── START_WEB_APP.ps1              PowerShell launcher
+├── setup_linux.sh                 Linux setup script
+│
+├── .venv/                         Python virtual environment (gitignored)
+├── forensic-env/                  Alternate Python venv (gitignored)
+├── venv_linux/                    Linux Python venv (gitignored)
+├── node_modules/                  NPM packages (gitignored)
+├── dist/                          Vite production build output (gitignored)
+└── __pycache__/                   Python bytecode cache (gitignored)
+
+
+================================================================================
+  4. FILE-BY-FILE EXPLANATION
+================================================================================
+
+--------------------------------------------------------------------------------
+  4.1  BACKEND FILES
+--------------------------------------------------------------------------------
+
+FILE: forensic_web_app.py  (1188 lines)
+PURPOSE: Main Flask web server — the central orchestrator of the entire backend.
+IMPORTS:
+  - flask (Flask, render_template, request, jsonify, send_file, session)
+  - flask_cors (CORS)
+  - werkzeug.utils (secure_filename)
+  - os, json, threading, datetime, pathlib, re
+  - forensic_pipeline_advanced (AdvancedForensicAnalyzer, HAS_PYTSK3, HAS_PYEWF)
+  - Lazy imports: reportlab (PDF), python-docx (DOCX), rag_engine, hashlib, traceback
+KEY CLASSES/FUNCTIONS:
+  - allowed_file(filename)               — Validates upload file extension
+  - run_forensic_analysis(path, id)      — Background thread: runs full pipeline
+  - _ensure_rag_loaded()                 — Lazy-loads RAG engine on first use
+  - _llm_generate_section(prompt, fallback)  — Calls Ollama for report sections
+  - _build_report_data_summary(data)     — Builds fact-only text for LLM prompts
+  - generate_pdf_report(id, results)     — Creates professional PDF with reportlab
+  - generate_doc_report(id, results)     — Creates professional DOCX with python-docx
+  - _pdf_page_footer(canvas, doc)        — Draws PDF page headers/footers
+  - _fmt_size(bytes)                     — Human-readable file size formatting
+  - _warmup_models()                     — Pre-loads embedding model at startup
+  - Flask route handlers (see Section 5)
+INTERACTIONS:
+  - Imports AdvancedForensicAnalyzer from forensic_pipeline_advanced.py
+  - Lazy-imports vectorize_and_store() and ask() from rag_engine.py
+  - Reads/writes to uploads/ and analysis_output/ folders
+  - Communicates with Ollama LLM at localhost:11434 for report narratives
+  - Serves API responses to the React frontend
+
+FILE: forensic_pipeline_advanced.py  (809 lines)
+PURPOSE: Core forensic analysis engine with comprehensive detection capabilities.
+IMPORTS:
+  - json, os, hashlib, subprocess, datetime, pathlib, typing, collections, traceback
+  - requests (for Ollama LLM calls)
+  - pytsk3 (optional — disk image parsing)
+  - pyewf (optional — E01 format support)
+KEY CLASSES/FUNCTIONS:
+  - AdvancedForensicAnalyzer (main class)
+    - __init__(image_path, use_demo)     — Initializes analyzer, optionally with demo data
+    - check_llm_availability()           — Pings Ollama at localhost:11434
+    - generate_demo_data()               — Creates 13 realistic fake forensic files
+    - EWFImgInfo (inner class)           — Bridges pyewf handle to pytsk3 interface
+    - open_disk_image()                  — Opens RAW or E01 images via pytsk3/pyewf
+    - detect_partitions()                — Finds allocated partitions in disk image
+    - open_filesystem()                  — Mounts first partition's filesystem
+    - recursively_scan_files()           — Walks entire filesystem tree
+    - _scan_directory()                  — Recursive helper for file scanning
+    - convert_timestamp()                — Unix timestamp to human-readable string
+    - compute_file_hashes()              — SHA-256 for every file (symbolic in demo)
+    - detect_encryption()                — Finds encrypted volumes by extension/signature
+    - detect_network_artifacts()         — Finds network-related files (hosts, browser data)
+    - export_to_json()                   — Writes complete analysis to JSON
+    - generate_timeline_report()         — Chronological event report (TXT)
+    - generate_extension_report()        — File type distribution report (TXT)
+    - generate_summary_report()          — Comprehensive text summary + optional LLM
+    - call_local_llm()                   — Sends prompt to Ollama for analysis
+    - run_complete_analysis()            — Orchestrates full pipeline end-to-end
+  - main()                               — CLI entry point for standalone use
+INTERACTIONS:
+  - Used by forensic_web_app.py (imported as main analysis engine)
+  - Uses pytsk3 and pyewf for real disk parsing (when available)
+  - Falls back to demo mode with simulated data when libraries are missing
+  - Writes output to analysis_output/ folder
+
+FILE: forensic_pipeline.py  (661 lines)
+PURPOSE: Basic forensic analysis engine — original/simpler version.
+IMPORTS:
+  - pytsk3 (required — no demo fallback)
+  - json, os, datetime, pathlib, typing, traceback
+  - pyewf (optional)
+KEY CLASSES/FUNCTIONS:
+  - ForensicAnalyzer (main class)
+    - open_disk_image()                  — Opens RAW/E01 via pytsk3
+    - detect_partitions()                — Partition detection
+    - open_filesystem()                  — Filesystem mounting
+    - recursively_scan_files()           — File tree walking
+    - export_to_json()                   — JSON export
+    - generate_summary_from_model()      — Text summary generation
+INTERACTIONS:
+  - Not actively used by the web app (superseded by forensic_pipeline_advanced.py)
+  - Requires pytsk3 to be installed (no demo fallback)
+  - Useful as a reference or for direct CLI usage
+
+FILE: forensic_pipeline_demo.py  (416 lines)
+PURPOSE: Standalone demo version — no native libraries required at all.
+IMPORTS:
+  - json, os, datetime, pathlib, typing, traceback
+KEY CLASSES/FUNCTIONS:
+  - ForensicAnalyzerDemo (main class)
+    - generate_demo_data()               — Creates 11 realistic demo files
+    - open_disk_image()                  — Simulated (always succeeds)
+    - detect_partitions()                — Simulated
+    - open_filesystem()                  — Simulated
+    - recursively_scan_files()           — Simulated
+    - export_to_json()                   — Real JSON export of demo data
+    - generate_summary_from_model()      — Text summary from demo data
+    - run_analysis_pipeline()            — Full demo pipeline
+  - main()                               — CLI entry point
+INTERACTIONS:
+  - Superseded by forensic_pipeline_advanced.py's built-in demo mode
+  - Can be run standalone: python forensic_pipeline_demo.py
+  - No external dependencies beyond Python standard library
+
+FILE: rag_engine.py  (858 lines)
+PURPOSE: Retrieval-Augmented Generation engine — the AI brain of the chatbot.
+IMPORTS:
+  - json, os, re, uuid, hashlib, datetime, typing
+  - numpy (vector math)
+  - requests (Ollama HTTP calls)
+  - chromadb (vector database)
+  - sentence_transformers (SentenceTransformer — local embeddings)
+KEY CLASSES/FUNCTIONS:
+  - Configuration:
+    - _EMBED_MODEL_NAME = "all-MiniLM-L6-v2"
+    - CHROMA_DIR = ./chromadb_store/
+    - DISTANCE_THRESHOLD = 0.75 (cosine distance cutoff)
+  - Helper functions:
+    - _get_embed_model()                 — Lazy-loads embedding model
+    - _get_chroma()                      — Lazy-creates ChromaDB client
+    - _text_id(text)                     — Deterministic SHA-256 ID for chunks
+  - Artifact classification:
+    - _ARTIFACT_RULES                    — Rule list for categorizing chunks
+    - _classify_artifact_type()          — Assigns chunk to artifact category
+    - _detect_query_artifact()           — Detects query intent category
+  - Chunking:
+    - chunk_forensic_report()            — Splits JSON report into text chunks
+    - _human_size()                      — Byte count formatting
+  - Vectorization:
+    - vectorize_and_store()              — Chunks → embeds → stores in ChromaDB
+  - Retrieval:
+    - _raw_query()                       — Low-level ChromaDB vector search
+    - _merge_and_deduplicate()           — Hybrid merge of semantic + filtered hits
+    - _compress_context()                — Sentence-level context compression
+    - retrieve_context()                 — Full retrieval pipeline (5 steps)
+  - Prompt building:
+    - SYSTEM_PROMPT                      — Strict forensic-only system instruction
+    - _FORENSIC_KEYWORDS                 — Set of relevant query keywords
+    - _IRRELEVANT_PATTERNS               — Set of off-topic patterns to reject
+    - _is_relevant_query()               — Relevance guard (rejects off-topic)
+    - build_llm_prompt()                 — Formats Llama 3 instruct prompt
+    - generate_fallback_answer()         — Rule-based answer when LLM unavailable
+  - LLM integration:
+    - _call_ollama()                     — HTTP call to Ollama /api/generate
+  - Public API:
+    - ask()                              — End-to-end: relevance → retrieve → answer
+INTERACTIONS:
+  - Lazy-imported by forensic_web_app.py on first RAG use
+  - Reads from chromadb_store/ (vector database)
+  - Calls Ollama at localhost:11434 for Llama 3 responses
+  - Falls back to rule-based answers when Ollama is unavailable
+
+--------------------------------------------------------------------------------
+  4.2  FRONTEND FILES
+--------------------------------------------------------------------------------
+
+FILE: src/main.tsx  (12 lines)
+PURPOSE: React application entry point.
+  - Mounts the <App /> component inside <BrowserRouter> into the DOM root element.
+  - The starting point for the entire frontend application.
+
+FILE: src/App.tsx  (298 lines)
+PURPOSE: Root component — routing, layout, shared state, page composition.
+IMPORTS: react, react-router-dom, lucide-react, all forensic components (lazy-loaded)
+KEY COMPONENTS:
+  - HeroPage()                           — Landing page with hero animation
+  - AnalysisPage()                       — Main workspace with tabbed navigation
+  - HomeTab()                            — Dashboard overview (supported formats, status)
+  - ReportDownloadButtons()              — PDF/DOCX download with blob handling
+  - App()                                — Root: two routes (/ and /analysis)
+INTERACTIONS:
+  - Lazy-loads ForensicFileUpload, ForensicAnalysisDashboard, ForensicRagChat,
+    LetterGlitch, NavBar to optimize initial bundle size
+  - Lifts analysisResult state so it persists across tab switches
+  - On mount, fetches GET /api/status to restore any completed analysis
+  - Routes: "/" → HeroPage, "/analysis" → AnalysisPage
+
+FILE: src/components/forensics/forensic-analysis-hero.tsx  (230 lines)
+PURPOSE: 3D parallax landing page with forensic investigation theme.
+  - Mouse-tracking CSS 3D perspective rotation
+  - Layered background with grain filter and contour lines
+  - "BEGIN ANALYSIS" CTA button with blood-drip hover animation
+  - Accepts onBeginAnalysis callback prop to navigate to /analysis
+  - No API calls — purely presentational
+
+FILE: src/components/forensics/forensic-file-upload.tsx  (221 lines)
+PURPOSE: File upload component — handles the entire upload-to-analysis flow.
+INTERACTIONS WITH BACKEND:
+  1. GET  /api/status            — Check if backend is online
+  2. POST /api/upload            — Upload file (multipart/form-data)
+  3. POST /api/analyze           — Trigger analysis with { image_path }
+  4. GET  /api/analysis/{id}/status — Poll analysis progress (every 2s)
+  5. GET  /api/export/{format}   — Download PDF or DOCX report
+FLOW:
+  - Validates file extension client-side (.raw, .dd, .e01, .img, .iso, .bin, .dmg)
+  - Uploads to Flask backend
+  - Triggers analysis
+  - Polls for completion with progress bar
+  - On completion: dispatches "fileUploaded" CustomEvent and calls onAnalysisComplete()
+
+FILE: src/components/forensics/forensic-analysis-dashboard.tsx  (191 lines)
+PURPOSE: Real-time analysis results display with stats grid.
+INTERACTIONS WITH BACKEND:
+  1. GET /api/results                    — Fetch full analysis results
+  2. GET /api/analysis/{id}/status       — Poll real-time status
+DISPLAYS:
+  - Total files scanned
+  - Deleted files found
+  - Suspicious files count
+  - Encrypted items count
+  - Network artifacts count
+  - File types detected
+  - Analysis history sidebar
+
+FILE: src/components/forensics/forensic-rag-chat.tsx  (202 lines)
+PURPOSE: Interactive RAG chatbot for querying forensic evidence.
+INTERACTIONS WITH BACKEND:
+  1. GET  /api/rag/status                — Poll until RAG is ready (ChromaDB loaded)
+  2. POST /api/rag/chat                  — Send query { query, top_k, use_llm }
+FEATURES:
+  - Chat message history (user/assistant/system roles)
+  - Lightweight markdown rendering in responses
+  - Collapsible source citations (shows which chunks were used)
+  - Quick-prompt chips for common forensic queries:
+    "What suspicious files were found?"
+    "Show me deleted files"
+    "List encrypted items"
+    "Timeline of events"
+    "Network artifacts found"
+    "Give me a summary"
+  - Loading spinner while waiting for response
+  - Error handling with retry
+
+FILE: src/components/forensics/forensic-report-viewer.tsx  (156 lines)
+PURPOSE: Report viewer with Summary / Timeline / Files tabs.
+INTERACTIONS WITH BACKEND:
+  1. GET /api/analysis/{id}/report       — Fetch report data
+  2. GET /api/export/pdf                 — Download PDF
+  3. GET /api/export/docx                — Download DOCX
+
+FILE: src/components/forensics/navbar.tsx  (158 lines)
+PURPOSE: Cyberpunk-themed top navigation bar with glassmorphism effects.
+  - "FORENSIC / ANALYSIS" branding
+  - Navigation links: Upload, Analysis, Report
+  - "← HOME" button
+  - No API calls
+
+FILE: src/components/ui/tubelight-navbar.tsx  (95 lines)
+PURPOSE: Floating pill-shaped navbar with animated "tubelight" glow indicator.
+  - Uses Framer Motion for smooth layout transitions
+  - Supports controlled (activeTab/onTabChange) and uncontrolled state
+  - Responsive: icons on mobile, text on desktop
+
+FILE: src/components/ui/LetterGlitch.tsx  (207 lines)
+PURPOSE: Canvas-based animated background with glitching characters.
+  - Renders grid of randomly changing characters on HTML5 canvas
+  - Smooth color interpolation between configurable glitch colors
+  - Performance optimized: pauses when browser tab is hidden
+  - Configurable: glitch speed, vignette overlays, character set
+
+FILE: src/lib/utils.ts  (6 lines)
+PURPOSE: Standard shadcn/ui utility function.
+  - Exports cn() — combines clsx() and twMerge() for Tailwind class composition
+  - Used by virtually every component for conditional class names
+
+--------------------------------------------------------------------------------
+  4.3  CONFIGURATION FILES
+--------------------------------------------------------------------------------
+
+FILE: vite.config.ts  (76 lines)
+PURPOSE: Vite bundler configuration.
+  - Moves cache to system temp dir (avoids OneDrive sync issues)
+  - Sets up @ path alias pointing to ./src
+  - Dev server: 127.0.0.1:5173
+  - Proxy: /api/* → http://127.0.0.1:5000 (60s timeout)
+  - Pre-bundles all npm dependencies for fast cold starts
+  - Manual chunk splitting: react, framer-motion, vendor-icons
+
+FILE: package.json  (36 lines)
+PURPOSE: NPM project definition.
+  - Scripts: dev, build, lint, preview, add (shadcn-ui)
+  - Runtime deps: react, react-dom, react-router-dom, framer-motion,
+    lucide-react, clsx, tailwind-merge, tailwindcss-animate
+  - Dev deps: typescript, vite, @vitejs/plugin-react, tailwindcss,
+    postcss, autoprefixer, class-variance-authority
+
+FILE: components.json  (22 lines)
+PURPOSE: shadcn/ui configuration.
+  - Style: new-york; TSX: true; CSS variables: true
+  - Icon library: lucide
+  - Custom registry: reactbits.dev
+
+FILE: requirements.txt  (37 lines)
+PURPOSE: Python package dependencies.
+  - Web: Flask, flask-cors, Werkzeug
+  - HTTP: requests
+  - Export: reportlab (PDF), python-docx (DOCX)
+  - RAG: chromadb, sentence-transformers, numpy
+  - Optional: pytsk3 (commented), pyewf (commented)
+
+FILE: tailwind.config.js
+PURPOSE: Tailwind CSS theme configuration.
+
+FILE: postcss.config.js
+PURPOSE: PostCSS plugin chain (Tailwind + autoprefixer).
+
+FILE: tsconfig.json / tsconfig.node.json
+PURPOSE: TypeScript compiler settings for app code and tooling.
+
+
+================================================================================
+  5. API ENDPOINT DOCUMENTATION
+================================================================================
+
+All endpoints are served by forensic_web_app.py at http://127.0.0.1:5000.
+The Vite dev server proxies /api/* from :5173 to :5000.
+
+--------------------------------------------------------------------------------
+
+  GET /
+  Purpose: Render main dashboard (Flask template fallback).
+  Response: HTML page (templates/index.html)
+  Called by: Direct browser access to :5000
+
+--------------------------------------------------------------------------------
+
+  GET /api/status
+  Purpose: Get current analysis status (global state).
+  Response: JSON {
+    current: string|null,    // analysis ID
+    progress: number,        // 0-100
+    status: "idle"|"analyzing"|"completed"|"error",
+    message: string,
+    errors: string[],
+    results: object|null,
+    rag_collection: string|null
+  }
+  Called by: forensic-file-upload.tsx (health check),
+             App.tsx (restore state on mount)
+
+--------------------------------------------------------------------------------
+
+  POST /api/upload
+  Purpose: Upload a forensic disk image file.
+  Input: multipart/form-data with field "file"
+  Validation: Extension must be in {raw, dd, e01, img, iso, bin, dmg}
+  Storage: Saved to uploads/{timestamp}_{filename}
+  Response: JSON {
+    success: true,
+    message: "File uploaded successfully",
+    filename: string,
+    filepath: string
+  }
+  Error: 400 (no file / invalid type), 500 (server error)
+  Called by: forensic-file-upload.tsx
+
+--------------------------------------------------------------------------------
+
+  POST /api/analyze
+  Purpose: Start forensic analysis on an uploaded image.
+  Input: JSON { image_path: string }
+  Action: Spawns background thread running run_forensic_analysis()
+  Response: JSON {
+    success: true,
+    analysis_id: string (timestamp format: YYYYMMDD_HHMMSS),
+    message: "Analysis started"
+  }
+  Error: 400 (no path / file not found), 500 (server error)
+  Called by: forensic-file-upload.tsx
+
+--------------------------------------------------------------------------------
+
+  GET /api/analysis/<analysis_id>/status
+  Purpose: Poll status of a specific running analysis.
+  Response: JSON {
+    id: string,
+    status: "idle"|"analyzing"|"completed"|"error",
+    progress: number,
+    message: string,
+    errors: string[],
+    results: object|null     // populated when status = "completed"
+  }
+  Error: 404 (analysis not found)
+  Called by: forensic-file-upload.tsx (polling every 2 seconds),
+             forensic-analysis-dashboard.tsx
+
+--------------------------------------------------------------------------------
+
+  GET /api/results
+  Purpose: Get the latest completed analysis results (summary only).
+  Response: JSON {
+    timestamp: string,
+    image_path: string,
+    summary: { total_files, total_deleted_files, suspicious_files_count,
+               encrypted_items_count, network_artifacts_count },
+    extensions: { ".exe": 5, ".dll": 3, ... },
+    encrypted_items: [...],
+    network_artifacts: [...]
+  }
+  Error: 400 (no results available)
+  Called by: forensic-analysis-dashboard.tsx
+
+--------------------------------------------------------------------------------
+
+  GET /api/export/<format>
+  Purpose: Generate and download a PDF or DOCX report.
+  Parameters: format = "pdf" | "doc" | "docx"
+  Action:
+    - PDF: Calls generate_pdf_report() → uses reportlab to build multi-page report
+           with cover page, statistics tables, suspicious files, LLM narrative
+    - DOCX: Calls generate_doc_report() → uses python-docx with styled tables
+  Response: Binary file download with Content-Disposition header
+  Error: 400 (no results), 500 (generation failed)
+  Called by: ReportDownloadButtons in App.tsx,
+             forensic-file-upload.tsx,
+             forensic-report-viewer.tsx
+
+--------------------------------------------------------------------------------
+
+  GET /api/reset
+  Purpose: Reset analysis state for a new analysis.
+  Action: Clears global analysis_status to initial idle state
+  Response: JSON { success: true, message: "Analysis reset" }
+  Called by: Frontend (before new upload)
+
+--------------------------------------------------------------------------------
+
+  POST /api/rag/chat
+  Purpose: Send a question to the RAG chatbot.
+  Input: JSON {
+    query: string,           // User's question
+    collection: string,      // ChromaDB collection name (optional)
+    top_k: number,           // Number of chunks to retrieve (default: 5)
+    use_llm: boolean         // Whether to use Llama 3 (default: true)
+  }
+  Action:
+    1. Lazy-loads RAG engine
+    2. Checks query relevance (rejects off-topic)
+    3. Retrieves context from ChromaDB
+    4. Builds Llama 3 prompt
+    5. Calls Ollama or falls back to rule-based answer
+  Response: JSON {
+    success: true,
+    answer: string,          // AI-generated answer
+    context: [{ text, source }],  // Source chunks used
+    collection: string,
+    rejected: boolean        // true if query was off-topic
+  }
+  Error: 400 (no query / no collection), 500 (server error)
+  Called by: forensic-rag-chat.tsx
+
+--------------------------------------------------------------------------------
+
+  GET /api/rag/status
+  Purpose: Check if RAG engine is ready (ChromaDB collection exists).
+  Response: JSON {
+    ready: boolean,
+    collection: string|null
+  }
+  Called by: forensic-rag-chat.tsx (polls until ready = true)
+
+
+================================================================================
+  6. RAG PIPELINE EXPLANATION
+================================================================================
+
+The RAG (Retrieval-Augmented Generation) system is implemented entirely in
+rag_engine.py and enables investigators to ask natural-language questions
+about the forensic evidence.
+
+--------------------------------------------------------------------------------
+  6.1  DOCUMENT CHUNKING (chunk_forensic_report)
+--------------------------------------------------------------------------------
+
+The JSON analysis report is split into meaningful, self-contained text chunks:
+
+  Chunk Type              Source Label          Content
+  ──────────────────────  ────────────────────  ─────────────────────────────
+  Overview                "overview"            Image path, timestamp, filesystem
+                                                info, summary statistics
+  Extension Statistics    "extension_stats"     File type distribution table
+  Per-File Metadata       "file:{filename}"     Name, path, size, timestamps,
+                                                inode, deleted status, hash,
+                                                suspicious flag
+  Encrypted Items         "encrypted_items"     Names, paths, types, sizes
+  Network Artifacts       "network_artifacts"   Names, paths, types, sizes
+  Timeline Batches        "timeline_batch_{n}"  Groups of 5 timeline events
+
+Each chunk is classified into an artifact_type using rule-based pattern matching:
+  - browser_history, usb_logs, login_events, installed_programs,
+    network_connections, filesystem, general
+
+--------------------------------------------------------------------------------
+  6.2  EMBEDDING GENERATION (vectorize_and_store)
+--------------------------------------------------------------------------------
+
+  Model: sentence-transformers "all-MiniLM-L6-v2"
+  - 384-dimensional vectors
+  - ~22 MB download on first run
+  - Runs entirely locally (no API key needed)
+  - Lazy-loaded to avoid startup delay
+
+  Process:
+  1. All chunk texts are batch-encoded into 384-dim float vectors
+  2. Deterministic IDs generated via SHA-256 of chunk text
+  3. Metadata attached: source, analysis_id, artifact_type, source_file, page_id
+
+--------------------------------------------------------------------------------
+  6.3  VECTOR DATABASE STORAGE (ChromaDB)
+--------------------------------------------------------------------------------
+
+  Database: ChromaDB PersistentClient
+  Storage path: ./chromadb_store/
+  Collection name: "forensic_{analysis_id}" (e.g., "forensic_20260304_094921")
+  Distance metric: cosine similarity (hnsw:space = "cosine")
+  
+  Each document is stored with:
+  - id: deterministic hash-based ID
+  - document: original chunk text
+  - embedding: 384-dim float vector
+  - metadata: { source, analysis_id, artifact_type, source_file, page_id }
+
+  Old collections with the same name are deleted before re-indexing.
+
+--------------------------------------------------------------------------------
+  6.4  RETRIEVAL (retrieve_context) — 5-step pipeline
+--------------------------------------------------------------------------------
+
+  Step A: Semantic Search (always)
+    - Encode user query into 384-dim vector
+    - Query ChromaDB for top-K nearest neighbors by cosine distance
+    - Filter by DISTANCE_THRESHOLD (0.75 max cosine distance)
+
+  Step B: Query Intent Detection
+    - Rule-based classifier (_detect_query_artifact) checks query keywords
+    - Maps to artifact category: browser_history, usb_logs, login_events,
+      installed_programs, network_connections, filesystem
+    - Returns None if no specific category detected
+
+  Step C: Hierarchical Filtered Search (if category detected)
+    - Queries ChromaDB with metadata filter: { artifact_type: detected_category }
+    - Returns chunks matching both semantic similarity AND artifact type
+
+  Step D: Hybrid Merge & Deduplication
+    - Round-robin interleaves filtered hits (priority) and semantic hits
+    - Deduplicates by first 200 chars of text
+    - Sorts by distance (best first), trims to top_k
+
+  Step E: Context Compression
+    - Splits retrieved chunks into individual sentences
+    - Embeds all sentences and computes cosine similarity with query
+    - Keeps only sentences above similarity_threshold (0.25)
+    - Returns top 8 most relevant sentences, grouped by source
+    - Skips compression for small result sets (< 500 chars)
+
+--------------------------------------------------------------------------------
+  6.5  LLM RESPONSE GENERATION (ask)
+--------------------------------------------------------------------------------
+
+  Step 0: Relevance Guard
+    - Rejects off-topic queries (greetings, jokes, general knowledge)
+    - Uses _IRRELEVANT_PATTERNS (exact match) and _FORENSIC_KEYWORDS (keyword check)
+    - Returns canned rejection message for irrelevant queries
+
+  Step 1: Prompt Construction (build_llm_prompt)
+    - Uses Llama 3 instruct format: <|begin_of_text|> / system / user / assistant
+    - System prompt enforces strict forensic-only responses
+    - User section contains: forensic report context + user question
+
+  Step 2: LLM Call (_call_ollama)
+    - POST to http://localhost:11434/api/generate
+    - Model: "llama3", temperature: 0.3, max tokens: 300
+    - Timeout: 60 seconds
+
+  Step 3: Fallback (generate_fallback_answer)
+    - If Ollama is unavailable, uses rule-based pattern matching
+    - Intent handlers for: file count, suspicious files, deleted files,
+      encrypted items, timeline, network, summary/overview
+    - Generic fallback: returns top-3 most relevant chunks
+
+  Response includes:
+    - answer: Generated text
+    - context: Source chunks used (text + source label)
+    - collection: ChromaDB collection name
+    - rejected: Whether query was off-topic
+
+--------------------------------------------------------------------------------
+  6.6  COMPLETE RAG FLOW DIAGRAM
+--------------------------------------------------------------------------------
+
+  User types question in forensic-rag-chat.tsx
+    │
+    ▼
+  POST /api/rag/chat  { query: "What suspicious files were found?" }
+    │
+    ▼
+  _is_relevant_query() → PASS (contains "suspicious" keyword)
+    │
+    ▼
+  _get_embed_model().encode(query) → [0.234, -0.156, 0.891, ...] (384-dim)
+    │
+    ├─────────────────────────────────────────────┐
+    ▼                                             ▼
+  Semantic search                         _detect_query_artifact()
+  ChromaDB.query(embedding, n=5)          → "filesystem" category
+    │                                             │
+    │                                             ▼
+    │                                    Filtered search
+    │                                    ChromaDB.query(embedding, n=5,
+    │                                      where={artifact_type: "filesystem"})
+    │                                             │
+    └──────────────┬──────────────────────────────┘
+                   ▼
+  _merge_and_deduplicate() → Round-robin interleave → deduplicate → sort
+                   │
+                   ▼
+  _compress_context() → Split to sentences → embed → cosine similarity
+                       → Keep top 8 above threshold 0.25
+                   │
+                   ▼
+  build_llm_prompt() → Llama 3 instruct format with context + question
+                   │
+                   ▼
+  _call_ollama() → POST localhost:11434/api/generate
+                   │
+                   ├── Success → LLM answer
+                   └── Failure → generate_fallback_answer() (rule-based)
+                   │
+                   ▼
+  Response JSON { answer, context, collection, rejected: false }
+                   │
+                   ▼
+  forensic-rag-chat.tsx renders answer with source citations
+
+
+================================================================================
+  7. END-TO-END WORKFLOW
+================================================================================
+
+STEP 1: USER OPENS APPLICATION
+  - Navigates to http://localhost:5173 (Vite dev server)
+  - Vite serves the React SPA
+  - Landing page renders: forensic-analysis-hero.tsx (3D parallax)
+  - User clicks "BEGIN ANALYSIS" → navigates to /analysis
+
+STEP 2: ANALYSIS PAGE LOADS
+  - App.tsx lazy-loads: ForensicFileUpload, ForensicAnalysisDashboard,
+    ForensicRagChat, LetterGlitch (canvas bg), NavBar
+  - NavBar renders with tabs: Home, Upload, Analysis, Report
+  - Default tab: Upload
+  - App.tsx fetches GET /api/status to check for prior completed analysis
+
+STEP 3: USER UPLOADS EVIDENCE FILE
+  - User selects disk image file in ForensicFileUpload
+  - Client-side validation: checks extension (.raw, .dd, .e01, etc.)
+  - POST /api/upload sends file as multipart/form-data
+  - Flask saves file to uploads/{timestamp}_{filename}
+  - Flask returns { success, filename, filepath }
+
+STEP 4: ANALYSIS IS TRIGGERED
+  - Frontend sends POST /api/analyze with { image_path: filepath }
+  - Flask spawns background thread: run_forensic_analysis(path, analysis_id)
+  - Returns immediately: { success, analysis_id, message }
+
+STEP 5: BACKGROUND ANALYSIS PIPELINE (run_forensic_analysis)
+  Progress 5%   — Initialize AdvancedForensicAnalyzer
+                  Auto-detect demo mode if pytsk3/pyewf unavailable
+                  If demo + real file exists: inject real file metadata + SHA-256
+  Progress 25%  — open_disk_image() — mount RAW/E01 via pytsk3/pyewf (or simulate)
+  Progress 35%  — detect_partitions() — find allocated partitions
+  Progress 45%  — open_filesystem() — mount filesystem (NTFS/FAT/ext4)
+  Progress 55%  — recursively_scan_files() — walk entire filesystem tree
+                  Extract: name, path, size, inode, timestamps, deleted flag
+                  Count file extensions, build timeline events
+  Progress 65%  — compute_file_hashes() — SHA-256 for every file
+  Progress 75%  — detect_encryption() — scan for encrypted volumes
+                  detect_network_artifacts() — find network-related files
+  Progress 85%  — Generate reports:
+                  → {id}_report.json     (complete structured data)
+                  → {id}_timeline.txt    (chronological events)
+                  → {id}_extensions.txt  (file type distribution)
+                  → {id}_summary.txt     (human-readable summary + optional LLM)
+  Progress 95%  — RAG vectorization:
+                  → chunk_forensic_report() splits JSON into chunks
+                  → sentence-transformers encodes chunks to 384-dim vectors
+                  → ChromaDB stores vectors in chromadb_store/
+  Progress 100% — Analysis complete, results stored in global analysis_status
+
+STEP 6: FRONTEND POLLS FOR COMPLETION
+  - ForensicFileUpload polls GET /api/analysis/{id}/status every 2 seconds
+  - Updates progress bar (0% → 100%)
+  - On "completed": calls onAnalysisComplete(result)
+  - App.tsx stores result in analysisResult state
+
+STEP 7: RESULTS DISPLAYED
+  - ForensicAnalysisDashboard renders stats grid:
+    Total files | Deleted files | Suspicious | Encrypted | Network | File types
+  - ForensicReportViewer shows tabs: Summary, Timeline, Files
+  - ReportDownloadButtons appear: Download PDF | Download DOCX
+
+STEP 8: USER DOWNLOADS REPORT (optional)
+  - Clicks "Download PDF" → GET /api/export/pdf
+  - Flask calls generate_pdf_report():
+    → Sends data summary to Ollama for LLM executive summary
+    → Sends data summary to Ollama for LLM detailed findings
+    → Builds multi-page PDF with reportlab:
+       Cover page, Evidence Info, Executive Summary, Statistics,
+       Extension Distribution, Suspicious Files (red table),
+       Deleted Files, Encrypted Items, Network Artifacts,
+       Detailed Findings, Disclaimer
+  - Returns binary PDF with Content-Disposition: attachment
+  - Same flow for DOCX via generate_doc_report() with python-docx
+
+STEP 9: USER INTERACTS WITH RAG CHATBOT
+  - User switches to "Analysis" tab
+  - ForensicRagChat polls GET /api/rag/status until { ready: true }
+  - User types question or clicks quick-prompt chip
+  - POST /api/rag/chat with { query, top_k: 5, use_llm: true }
+  - Backend: relevance check → retrieve context → LLM/fallback → return answer
+  - Frontend renders answer with markdown formatting and source citations
+  - User can ask follow-up questions (chat history maintained client-side)
+
+STEP 10: NEW ANALYSIS (optional)
+  - User can click reset or upload a new file
+  - GET /api/reset clears global state
+  - Previous ChromaDB collection persists until overwritten
+  - New upload starts the cycle again from Step 3
+
+
+================================================================================
+  8. DATA FLOW DIAGRAM
+================================================================================
+
+  ┌────────┐     ┌──────────────┐     ┌────────────────────┐
+  │  User  │────>│  React SPA   │────>│  Flask Backend     │
+  │Browser │     │  :5173       │     │  :5000             │
+  └────────┘     └──────┬───────┘     └──────┬─────────────┘
+                        │                     │
+                   fetch("/api/*")            │
+                        │                     │
+                        ▼                     │
+                 ┌──────────────┐             │
+                 │ Vite Proxy   │─────────────┘
+                 │ /api → :5000 │
+                 └──────────────┘
+
+  UPLOAD FLOW:
+  User → forensic-file-upload.tsx → POST /api/upload → uploads/ → file saved
+                                  → POST /api/analyze → background thread started
+
+  ANALYSIS FLOW:
+  Thread → AdvancedForensicAnalyzer → pytsk3/pyewf (or demo)
+         → extract metadata, hashes, timeline, encryption, network
+         → analysis_output/{id}_report.json
+         → analysis_output/{id}_summary.txt
+         → analysis_output/{id}_timeline.txt
+         → analysis_output/{id}_extensions.txt
+
+  RAG INDEXING FLOW:
+  analysis_output/{id}_report.json
+         → rag_engine.chunk_forensic_report()
+         → sentence-transformers.encode()
+         → chromadb_store/ (persisted vectors)
+
+  REPORT EXPORT FLOW:
+  User → ReportDownloadButtons → GET /api/export/pdf
+       → generate_pdf_report() → Ollama (LLM narratives) + reportlab
+       → binary PDF → browser download
+
+  CHATBOT FLOW:
+  User → forensic-rag-chat.tsx → POST /api/rag/chat
+       → rag_engine.ask()
+       → relevance guard
+       → retrieve_context() → ChromaDB similarity search
+       → build_llm_prompt() → Ollama /api/generate
+       → (fallback: rule-based answer)
+       → JSON response → chat UI rendered
+
+  SIMPLIFIED PIPELINE:
+
+  User → React UI → Vite Proxy → Flask API → Forensic Pipeline → Disk Parsing
+       → Artifact Extraction → JSON Report → analysis_output/
+       → RAG Chunking → Embedding → ChromaDB → Vector Store
+       → User Question → Semantic Search → Context Retrieval
+       → LLM Prompt → Ollama/Llama 3 → AI Answer → Chat UI
+
+
+================================================================================
+  9. DEPENDENCIES
+================================================================================
+
+--------------------------------------------------------------------------------
+  9.1  PYTHON LIBRARIES (requirements.txt)
+--------------------------------------------------------------------------------
+
+  Package               Version    Purpose
+  ────────────────────  ─────────  ───────────────────────────────────────────
+  Flask                 >= 2.3.0   Web framework, HTTP server, routing
+  flask-cors            >= 4.0.0   Cross-Origin Resource Sharing for React dev
+  Werkzeug              >= 2.3.0   WSGI toolkit, secure file upload handling
+  requests              >= 2.31.0  HTTP client (calls to Ollama LLM API)
+  reportlab             >= 4.0.4   Professional PDF report generation
+  python-docx           >= 0.8.11  Microsoft Word DOCX report generation
+  chromadb              >= 0.5.0   Vector database for RAG (persistent storage)
+  sentence-transformers >= 3.0.0   Local embedding model (all-MiniLM-L6-v2)
+  numpy                 >= 1.26.0  Numerical computing (vector operations)
+
+  OPTIONAL (require native C++ build tools):
+  pytsk3                >= 20231007  The Sleuth Kit Python bindings (disk parsing)
+  pyewf                 >= 20231119  EnCase E01 image format support (libewf)
+
+--------------------------------------------------------------------------------
+  9.2  NODE.JS PACKAGES (package.json)
+--------------------------------------------------------------------------------
+
+  Package                   Type    Purpose
+  ────────────────────────  ──────  ──────────────────────────────────────────
+  react                     Prod    UI component library
+  react-dom                 Prod    React DOM rendering
+  react-router-dom          Prod    Client-side routing (/ and /analysis)
+  framer-motion             Prod    Animation library (navbar transitions)
+  lucide-react              Prod    Icon library (Home, Upload, BarChart3, etc.)
+  clsx                      Prod    Conditional class name joining
+  tailwind-merge            Prod    Tailwind CSS class deduplication
+  tailwindcss-animate       Prod    Tailwind animation utilities
+  typescript                Dev     TypeScript compiler
+  vite                      Dev     Build tool and dev server
+  @vitejs/plugin-react      Dev     React Fast Refresh for Vite
+  tailwindcss               Dev     Utility-first CSS framework
+  postcss                   Dev     CSS post-processor
+  autoprefixer              Dev     Vendor prefix automation
+  class-variance-authority  Dev     Component variant styling (shadcn/ui)
+  @types/react              Dev     TypeScript type definitions
+  @types/react-dom          Dev     TypeScript type definitions
+
+--------------------------------------------------------------------------------
+  9.3  VECTOR DATABASE
+--------------------------------------------------------------------------------
+
+  ChromaDB (PersistentClient)
+  - Storage: ./chromadb_store/ (SQLite + vector index files)
+  - Distance metric: cosine similarity (HNSW algorithm)
+  - Collection naming: "forensic_{analysis_id}"
+  - Persistence: survives server restarts
+
+--------------------------------------------------------------------------------
+  9.4  EMBEDDING MODEL
+--------------------------------------------------------------------------------
+
+  Model: all-MiniLM-L6-v2 (sentence-transformers)
+  - Dimensions: 384
+  - Size: ~22 MB (downloaded on first use)
+  - Speed: ~100 sentences/second on CPU
+  - Runs 100% locally — no API key or internet required after download
+
+--------------------------------------------------------------------------------
+  9.5  LLM MODEL (Optional)
+--------------------------------------------------------------------------------
+
+  Model: Llama 3 via Ollama
+  - Endpoint: http://localhost:11434/api/generate
+  - Temperature: 0.3 (for factual responses)
+  - Max tokens: 300
+  - Used for: Executive summary, detailed findings (PDF/DOCX), chat answers
+  - Fallback: Rule-based pattern matching when Ollama is unavailable
+  - Install: https://ollama.ai → ollama pull llama3
+
+--------------------------------------------------------------------------------
+  9.6  STARTUP COMMANDS
+--------------------------------------------------------------------------------
+
+  Backend:
+    cd Evidence-Extraction
+    .venv\Scripts\Activate.ps1           # Activate Python venv
+    pip install -r requirements.txt      # Install Python dependencies
+    python forensic_web_app.py           # Start Flask at :5000
+
+  Frontend:
+    cd Evidence-Extraction
+    npm install                          # Install Node dependencies
+    npm run dev                          # Start Vite at :5173
+
+  Optional LLM:
+    ollama pull llama3                   # Download Llama 3 model
+    ollama serve                         # Start Ollama at :11434
+
+  Access:
+    http://localhost:5173                 # React frontend (recommended)
+    http://localhost:5000                 # Flask backend directly
+
+
+================================================================================
+  END OF DOCUMENTATION
+================================================================================
