@@ -5,6 +5,8 @@ import './App.css';
 
 // ── Hero page — eagerly loaded (first screen the user sees) ─────────────────
 import ForensicAnalysisHero from './components/forensics/forensic-analysis-hero';
+import SignupPage from './pages/SignupPage';
+import LoginPage from './pages/LoginPage';
 
 // ── Analysis page — lazy loaded (separate JS chunks, only downloaded when
 //    the user navigates to /analysis — not needed on the hero page at all)
@@ -56,7 +58,12 @@ export interface AnalysisResultData {
 // ── Hero / Landing Page ──────────────────────────────────────────────────────
 function HeroPage() {
   const navigate = useNavigate();
-  return <ForensicAnalysisHero onBeginAnalysis={() => navigate('/analysis')} />;
+  return (
+    <ForensicAnalysisHero
+      onBeginAnalysis={() => navigate('/login')}
+      onSignUp={() => navigate('/signup')}
+    />
+  );
 }
 
 // ── Home tab placeholder ─────────────────────────────────────────────────────
@@ -317,7 +324,9 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<HeroPage />} />
+      <Route path="/login" element={<LoginPage />} />
       <Route path="/analysis" element={<AnalysisPage />} />
+      <Route path="/signup" element={<SignupPage />} />
     </Routes>
   );
 }

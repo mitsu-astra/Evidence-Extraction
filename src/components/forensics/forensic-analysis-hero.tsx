@@ -7,9 +7,10 @@ import React, { useEffect, useRef } from 'react';
  */
 interface ForensicAnalysisHeroProps {
   onBeginAnalysis?: () => void;
+  onSignUp?: () => void;
 }
 
-const ForensicAnalysisHero: React.FC<ForensicAnalysisHeroProps> = ({ onBeginAnalysis }) => {
+const ForensicAnalysisHero: React.FC<ForensicAnalysisHeroProps> = ({ onBeginAnalysis, onSignUp }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const layersRef = useRef<HTMLDivElement[]>([]);
 
@@ -267,17 +268,30 @@ const ForensicAnalysisHero: React.FC<ForensicAnalysisHeroProps> = ({ onBeginAnal
               <p>[ DIGITAL FORENSIC ANALYSIS SUITE ]</p>
               <p>ADVANCED INVESTIGATION & DATA RECOVERY</p>
             </div>
-            <button className="forensic-cta-button" onClick={(e) => {
-              e.stopPropagation();
-              onBeginAnalysis?.();
-            }}>
-              LOGIN
-              <span className="forensic-drip" style={{ left: '22%', width: '4px', height: '17px' }}></span>
-              <span className="forensic-drip" style={{ left: '36%', width: '5px', height: '23px' }}></span>
-              <span className="forensic-drip" style={{ left: '51%', width: '3px', height: '14px' }}></span>
-              <span className="forensic-drip" style={{ left: '64%', width: '5px', height: '20px' }}></span>
-              <span className="forensic-drip" style={{ left: '76%', width: '3px', height: '12px' }}></span>
-            </button>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button className="forensic-cta-button" onClick={(e) => {
+                e.stopPropagation();
+                onBeginAnalysis?.();
+              }}>
+                LOGIN
+                <span className="forensic-drip" style={{ left: '22%', width: '4px', height: '17px' }}></span>
+                <span className="forensic-drip" style={{ left: '36%', width: '5px', height: '23px' }}></span>
+                <span className="forensic-drip" style={{ left: '51%', width: '3px', height: '14px' }}></span>
+                <span className="forensic-drip" style={{ left: '64%', width: '5px', height: '20px' }}></span>
+                <span className="forensic-drip" style={{ left: '76%', width: '3px', height: '12px' }}></span>
+              </button>
+              <button className="forensic-cta-button" onClick={(e) => {
+                e.stopPropagation();
+                onSignUp?.();
+              }}>
+                SIGN UP
+                <span className="forensic-drip" style={{ left: '22%', width: '4px', height: '17px' }}></span>
+                <span className="forensic-drip" style={{ left: '36%', width: '5px', height: '23px' }}></span>
+                <span className="forensic-drip" style={{ left: '51%', width: '3px', height: '14px' }}></span>
+                <span className="forensic-drip" style={{ left: '64%', width: '5px', height: '20px' }}></span>
+                <span className="forensic-drip" style={{ left: '76%', width: '3px', height: '12px' }}></span>
+              </button>
+            </div>
           </div>
         </div>
 

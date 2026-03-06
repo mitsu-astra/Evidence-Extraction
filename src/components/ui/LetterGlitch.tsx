@@ -124,6 +124,7 @@ const LetterGlitch = ({
     letters.current.forEach((letter, index) => {
       const x = (index % grid.current.columns) * charWidth;
       const y = Math.floor(index / grid.current.columns) * charHeight;
+      ctx.globalAlpha=0.6;
       ctx.fillStyle = letter.color;
       ctx.fillText(letter.char, x, y);
     });
@@ -237,9 +238,9 @@ const LetterGlitch = ({
       {outerVignette && (
         <div className="absolute top-0 left-0 w-full h-full pointer-events-none bg-[radial-gradient(circle,_rgba(0,0,0,0)_60%,_rgba(0,0,0,1)_100%)]"></div>
       )}
-      {centerVignette && (
+      {/* {centerVignette && (
         <div className="absolute top-0 left-0 w-full h-full pointer-events-none bg-[radial-gradient(circle,_rgba(0,0,0,0.8)_0%,_rgba(0,0,0,0)_60%)]"></div>
-      )}
+      )} */}
     </div>
   );
 };
