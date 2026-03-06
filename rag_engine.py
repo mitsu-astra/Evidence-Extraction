@@ -1,8 +1,8 @@
 """
 RAG ENGINE — Forensic Report Retrieval-Augmented Generation
 Chunks forensic JSON reports, vectorizes with sentence-transformers,
-stores in ChromaDB, and answers user queries via context retrieval.
-The retrieved context is formatted for a local Llama 3 model.
+stores in an in-memory numpy vector store, and answers user queries
+via context retrieval. Formatted for a local Llama 3 model.
 """
 
 import json
@@ -15,14 +15,7 @@ import requests
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-import chromadb
-from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
-
-# ── Paths ─────────────────────────────────────────────────────────────────────
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CHROMA_DIR = os.path.join(BASE_DIR, "chromadb_store")
-os.makedirs(CHROMA_DIR, exist_ok=True)
 
 # ── Embedding model (runs locally — no API key needed) ────────────────────────
 _EMBED_MODEL_NAME = "all-MiniLM-L6-v2"  # fast, 384-dim
@@ -39,15 +32,115 @@ def _get_embed_model() -> SentenceTransformer:
     return _embed_model
 
 
-# ── ChromaDB client ───────────────────────────────────────────────────────────
-_chroma_client: Optional[chromadb.PersistentClient] = None
+# ══════════════════════════════════════════════════════════════════════════════
+#  IN-MEMORY VECTOR STORE  (replaces ChromaDB — works on Python 3.14+)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class _InMemoryCollection:
+    """Minimal ChromaDB-compatible collection backed by numpy arrays."""
+
+    def __init__(self, name: str):
+        self.name = name
+        self._ids: List[str] = []
+        self._documents: List[str] = []
+        self._embeddings: List[List[float]] = []
+        self._metadatas: List[Dict[str, Any]] = []
+
+    def count(self) -> int:
+        return len(self._ids)
+
+    def upsert(
+        self,
+        ids: List[str],
+        documents: List[str],
+        embeddings: List[List[float]],
+        metadatas: List[Dict[str, Any]],
+    ) -> None:
+        # Replace existing ids; append new ones
+        id_index = {id_: i for i, id_ in enumerate(self._ids)}
+        for id_, doc, emb, meta in zip(ids, documents, embeddings, metadatas):
+            if id_ in id_index:
+                i = id_index[id_]
+                self._documents[i] = doc
+                self._embeddings[i] = emb
+                self._metadatas[i] = meta
+            else:
+                self._ids.append(id_)
+                self._documents.append(doc)
+                self._embeddings.append(emb)
+                self._metadatas.append(meta)
+
+    def query(
+        self,
+        query_embeddings: List[List[float]],
+        n_results: int = 10,
+        include: Optional[List[str]] = None,
+        where: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        if not self._embeddings:
+            return {"documents": [[]], "metadatas": [[]], "distances": [[]]}
+
+        query_vec = np.array(query_embeddings[0], dtype=np.float32)
+        store_vecs = np.array(self._embeddings, dtype=np.float32)
+
+        # cosine similarity → distance = 1 - sim (range 0..2)
+        q_norm = np.linalg.norm(query_vec) + 1e-9
+        s_norms = np.linalg.norm(store_vecs, axis=1) + 1e-9
+        similarities = store_vecs.dot(query_vec) / (s_norms * q_norm)
+        distances = (1.0 - similarities).tolist()
+
+        # Apply metadata filter (where)
+        indices = list(range(len(self._ids)))
+        if where:
+            filtered = []
+            for i in indices:
+                meta = self._metadatas[i]
+                if all(meta.get(k) == v for k, v in where.items()):
+                    filtered.append(i)
+            indices = filtered
+
+        if not indices:
+            return {"documents": [[]], "metadatas": [[]], "distances": [[]]}
+
+        # Sort by distance (ascending = most similar first)
+        indices.sort(key=lambda i: distances[i])
+        top = indices[:n_results]
+
+        return {
+            "documents": [[self._documents[i] for i in top]],
+            "metadatas": [[self._metadatas[i] for i in top]],
+            "distances": [[distances[i] for i in top]],
+        }
 
 
-def _get_chroma() -> chromadb.PersistentClient:
-    global _chroma_client
-    if _chroma_client is None:
-        _chroma_client = chromadb.PersistentClient(path=CHROMA_DIR)
-    return _chroma_client
+class _InMemoryVectorStore:
+    """Minimal ChromaDB-compatible client backed entirely in memory."""
+
+    def __init__(self):
+        self._collections: Dict[str, _InMemoryCollection] = {}
+
+    def get_or_create_collection(self, name: str, metadata: Optional[Dict] = None) -> _InMemoryCollection:
+        if name not in self._collections:
+            self._collections[name] = _InMemoryCollection(name)
+        return self._collections[name]
+
+    def get_collection(self, name: str) -> _InMemoryCollection:
+        if name not in self._collections:
+            raise ValueError(f"Collection '{name}' does not exist.")
+        return self._collections[name]
+
+    def delete_collection(self, name: str) -> None:
+        self._collections.pop(name, None)
+
+
+_vector_store: Optional[_InMemoryVectorStore] = None
+
+
+def _get_chroma() -> _InMemoryVectorStore:
+    global _vector_store
+    if _vector_store is None:
+        _vector_store = _InMemoryVectorStore()
+    return _vector_store
 
 
 # ── Helper: deterministic ID from text ────────────────────────────────────────
@@ -564,11 +657,16 @@ def retrieve_context(
     else:
         merged = semantic_hits
 
-    # ── Step E: context compression (reuse query_vec to avoid re-encoding) ──
-    compressed = _compress_context(
-        query, merged, top_n_sentences=8, similarity_threshold=0.25,
-        query_vec=query_vec[0],
-    )
+    # ── Step E: truncate each chunk to avoid sending massive blobs ───────
+    # Chunks are already ranked by cosine distance; no need to re-encode
+    # sentences (saves ~100-300 ms per query).
+    MAX_CHUNK_CHARS = 600
+    compressed = []
+    for hit in merged:
+        text = hit["text"]
+        if len(text) > MAX_CHUNK_CHARS:
+            text = text[:MAX_CHUNK_CHARS].rsplit("\n", 1)[0]  # trim at line boundary
+        compressed.append({**hit, "text": text})
 
     return compressed
 
@@ -629,15 +727,100 @@ _IRRELEVANT_RESPONSE = (
 
 # ── Patterns that are clearly NOT forensic questions ──────────────────────────
 _IRRELEVANT_PATTERNS = {
-    "hello", "hi", "hey", "good morning", "good evening", "good night",
-    "how are you", "what's up", "thank you", "thanks", "bye", "goodbye",
-    "who made you", "who created you", "tell me a joke", "joke",
     "what is python", "write code", "write a program", "capital of",
     "president of", "weather", "recipe", "song", "movie", "play",
     "calculate", "solve", "math", "translate", "meaning of life",
     "what is ai", "what is machine learning", "write an essay",
     "poem", "story", "sing", "draw", "paint", "game",
 }
+
+# ── Conversational / small-talk classifier ────────────────────────────────────
+_CHAT_RESPONSES: List[tuple] = [
+    # (list-of-triggers, response)
+    (
+        ["hello", "hi", "hey", "good morning", "good evening", "good night",
+         "howdy", "sup", "what's up", "yo"],
+        "👋 Hi there! I'm the **Forensic RAG Assistant**. I'm here to help you "
+        "investigate the uploaded disk image evidence.\n\n"
+        "You can ask me things like:\n"
+        "• *What suspicious files were found?*\n"
+        "• *Are there any deleted files?*\n"
+        "• *Show me the timeline of events*\n"
+        "• *List encrypted or network artifacts*\n"
+        "• *Give me a summary of the report*\n\n"
+        "How can I help you?",
+    ),
+    (
+        ["how are you", "how r you", "how do you do", "you ok"],
+        "I'm running at full capacity and ready to assist! 🔍\n\n"
+        "Ask me anything about the uploaded forensic evidence — files, timeline, "
+        "suspicious items, encrypted data, or network artifacts.",
+    ),
+    (
+        ["thank you", "thanks", "thx", "ty", "cheers", "great", "awesome", "nice",
+         "cool", "perfect", "got it", "ok", "okay"],
+        "You're welcome! 🙂 Let me know if you have more questions about the evidence.",
+    ),
+    (
+        ["bye", "goodbye", "see you", "cya", "later", "exit", "quit"],
+        "Goodbye! Stay sharp — digital evidence doesn't lie. 🕵️",
+    ),
+    (
+        ["who are you", "what are you", "who made you", "who created you",
+         "what can you do", "help", "capabilities", "what do you do"],
+        "🤖 I am the **Forensic RAG Assistant** — a specialized AI for analyzing "
+        "digital forensic disk-image reports.\n\n"
+        "I can help you with:\n"
+        "• Summarizing the overall report\n"
+        "• Finding suspicious, deleted, or encrypted files\n"
+        "• Tracking timeline events\n"
+        "• Identifying network artifacts\n"
+        "• Answering specific questions about file hashes, paths, and metadata\n\n"
+        "Just ask!",
+    ),
+    (
+        ["tell me a joke", "joke", "make me laugh", "funny"],
+        "😄 Why do forensic analysts make great detectives?\n"
+        "Because they always *hash* out the details! 🔐\n\n"
+        "Now, shall we get back to the evidence?",
+    ),
+]
+
+
+def _classify_chat(query: str) -> Optional[str]:
+    """
+    Check if the query is conversational small-talk.
+    Handles exact matches, prefix matches, AND fuzzy typo variants
+    (e.g. 'hlo', 'helo', 'heyy', 'thnks') using difflib similarity.
+    Returns a canned friendly response string, or None if it's not small-talk.
+    """
+    from difflib import SequenceMatcher
+
+    q = query.lower().strip().rstrip("?!., ")
+
+    # ── Pass 1: exact / prefix match ──────────────────────────────────────
+    for triggers, response in _CHAT_RESPONSES:
+        for trigger in triggers:
+            if q == trigger or q.startswith(trigger + " ") or q.startswith(trigger + "'"):
+                return response
+
+    # ── Pass 2: fuzzy match for short messages (≤ 4 words) ───────────────
+    # Only apply to short inputs to avoid false-positives on forensic queries.
+    if len(q.split()) <= 4:
+        best_response = None
+        best_score = 0.0
+        for triggers, response in _CHAT_RESPONSES:
+            for trigger in triggers:
+                score = SequenceMatcher(None, q, trigger).ratio()
+                if score > best_score:
+                    best_score = score
+                    best_response = response
+        # Threshold: 0.55 catches typos like 'hlo'→'hello', 'thnks'→'thanks',
+        # 'hw r u'→'how are you' without false-positives on forensic terms
+        if best_score >= 0.55:
+            return best_response
+
+    return None
 
 
 def _is_relevant_query(query: str) -> bool:
@@ -805,46 +988,79 @@ def ask(
     use_llm: bool = True,
 ) -> Dict[str, Any]:
     """
-    End-to-end: check relevance → retrieve context → build prompt → generate answer.
-    Irrelevant queries are rejected before any retrieval happens.
-    When use_llm=True (default), tries Ollama/Llama 3 first; falls back to rule-based.
+    End-to-end pipeline that handles ALL inputs gracefully — like a real LLM.
+    1. Greetings / small-talk  → friendly canned reply (fuzzy-matched, typos OK).
+    2. Forensic queries        → RAG retrieval → LLM answer (or rule-based fallback).
+    3. Anything else           → try retrieval; if nothing found, suggest what to ask.
+    No query is ever hard-blocked — every input gets a useful response.
     """
-    # ── Step 0: relevance guard ───────────────────────────────────────────
-    if not _is_relevant_query(query):
+    # ── Step 1: greetings / small-talk (handles typos via fuzzy matching) ─────
+    chat_reply = _classify_chat(query)
+    if chat_reply is not None:
         return {
-            "answer": _IRRELEVANT_RESPONSE,
+            "answer": chat_reply,
             "prompt": "",
             "context": [],
             "collection": collection_name,
-            "rejected": True,
+            "rejected": False,
         }
 
-    # ── Step 1: retrieve context from ChromaDB ────────────────────────────
-    context_chunks = retrieve_context(collection_name, query, top_k=top_k)
+    # ── Step 2: retrieve forensic context (best-effort for any input) ────────
+    try:
+        context_chunks = retrieve_context(collection_name, query, top_k=top_k)
+    except (ValueError, KeyError):
+        context_chunks = []
 
-    # If no chunks survived the distance threshold, the query doesn't
-    # match anything meaningful in the forensic report.
+    # ── Step 3: no relevant context found ──────────────────────────────────
     if not context_chunks:
+        # Try LLM for a conversational response even without forensic context
+        if use_llm:
+            general_prompt = (
+                f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
+                f"You are a friendly forensic evidence assistant. The user sent a "
+                f"message that does not match anything in the forensic report. "
+                f"Respond helpfully: if it looks like a greeting or casual message, "
+                f"reply warmly and tell them what topics you can help with "
+                f"(forensic files, timeline, deleted items, encrypted data, "
+                f"network artifacts, hashes). If it seems like a forensic question "
+                f"that just didn't match, ask them to rephrase. Keep it concise."
+                f"<|eot_id|>"
+                f"<|start_header_id|>user<|end_header_id|>\n\n{query}<|eot_id|>"
+                f"<|start_header_id|>assistant<|end_header_id|>\n\n"
+            )
+            llm_answer = _call_ollama(general_prompt)
+            if llm_answer:
+                return {
+                    "answer": llm_answer,
+                    "prompt": general_prompt,
+                    "context": [],
+                    "collection": collection_name,
+                    "rejected": False,
+                }
+        # Rule-based fallback — always give a helpful nudge
         return {
             "answer": (
-                "I don't have enough relevant information in the forensic report "
-                "to answer that question. Try asking about specific files, the "
-                "timeline, deleted items, encrypted data, or network artifacts."
+                "I couldn't find anything in the forensic report matching your query. "
+                "Here are some things you can ask me:\n\n"
+                "• *What suspicious files were found?*\n"
+                "• *Are there any deleted files?*\n"
+                "• *Show me the timeline of events*\n"
+                "• *List encrypted or network artifacts*\n"
+                "• *Give me a summary of the report*"
             ),
             "prompt": "",
             "context": [],
             "collection": collection_name,
-            "rejected": True,
+            "rejected": False,
         }
 
+    # ── Step 4: build prompt and generate answer ───────────────────────────
     prompt = build_llm_prompt(query, context_chunks)
 
-    # ── Step 2: generate answer ───────────────────────────────────────────
     answer = None
     if use_llm:
         answer = _call_ollama(prompt, model="llama3")
 
-    # Fallback to rule-based if LLM is off or unreachable
     if answer is None:
         answer = generate_fallback_answer(query, context_chunks)
 

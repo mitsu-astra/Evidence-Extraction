@@ -1173,7 +1173,7 @@ if __name__ == '__main__':
     print("\n" + "="*80)
     print(" FORENSIC ANALYSIS WEB APPLICATION - STARTING")
     print("="*80)
-    print("\n[+] Frontend: http://localhost:5000")
+    print("\n[+] Frontend: http://localhost:5001")
     print("[+] Backend: Flask Server")
     print("[+] Upload Folder: " + UPLOAD_FOLDER)
     print("[+] Output Folder: " + OUTPUT_FOLDER)
@@ -1184,4 +1184,4 @@ if __name__ == '__main__':
     warmup_thread = threading.Thread(target=_warmup_models, daemon=True)
     warmup_thread.start()
     
-    app.run(debug=False, host='127.0.0.1', port=5000, threaded=True)
+    app.run(debug=False, host='127.0.0.1', port=5001, threaded=True)

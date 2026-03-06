@@ -57,7 +57,7 @@ export const ForensicFileUpload: React.FC<ForensicFileUploadProps> = ({ onAnalys
     try {
       // Check if backend is running
       try {
-        const healthCheck = await fetch('http://localhost:5000/api/status', {
+        const healthCheck = await fetch('http://localhost:5001/api/status', {
           method: 'GET',
           signal: AbortSignal.timeout(5000),
         });
@@ -65,11 +65,11 @@ export const ForensicFileUpload: React.FC<ForensicFileUploadProps> = ({ onAnalys
           throw new Error('Backend server not responding correctly');
         }
       } catch (e) {
-        throw new Error('Backend server is not running on http://localhost:5000. Please start the Flask app with: python forensic_web_app.py');
+        throw new Error('Backend server is not running on http://localhost:5001. Please start the Flask app with: python forensic_web_app.py');
       }
 
       // Upload to Flask backend
-      const response = await fetch('http://localhost:5000/api/upload', {
+      const response = await fetch('http://localhost:5001/api/upload', {
         method: 'POST',
         body: formData,
       });
@@ -88,7 +88,7 @@ export const ForensicFileUpload: React.FC<ForensicFileUploadProps> = ({ onAnalys
       });
 
       // Start forensic analysis with the uploaded file path
-      const analyzeResponse = await fetch('http://localhost:5000/api/analyze', {
+      const analyzeResponse = await fetch('http://localhost:5001/api/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -118,7 +118,7 @@ export const ForensicFileUpload: React.FC<ForensicFileUploadProps> = ({ onAnalys
         while (!done) {
           await new Promise((r) => setTimeout(r, 1000));
           try {
-            const statusRes = await fetch(`http://localhost:5000/api/analysis/${analysisId}/status`);
+            const statusRes = await fetch(`http://localhost:5001/api/analysis/${analysisId}/status`);
             if (statusRes.ok) {
               const statusData = await statusRes.json();
               // Map backend 0-100 to frontend 50-99 (upload = first 50%)
@@ -187,7 +187,7 @@ export const ForensicFileUpload: React.FC<ForensicFileUploadProps> = ({ onAnalys
   const handleDownload = async (format: 'pdf' | 'docx') => {
     setIsDownloading(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/export/${format}`);
+      const response = await fetch(`http://localhost:5001/api/export/${format}`);
       
       if (!response.ok) {
         throw new Error('Download failed');

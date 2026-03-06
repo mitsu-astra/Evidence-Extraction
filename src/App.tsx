@@ -134,7 +134,7 @@ function AnalysisPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/status');
+        const res = await fetch('http://localhost:5001/api/status');
         if (!res.ok) return;
         const data = await res.json();
         if (data.status === 'completed' && data.results) {
@@ -185,6 +185,15 @@ function AnalysisPage() {
               <h2 className="text-3xl font-bold mb-6 border-b border-gray-700 pb-4">Upload Evidence</h2>
               <ForensicFileUpload onAnalysisComplete={handleAnalysisComplete} />
             </section>
+
+            {/* Download section — only visible after analysis completes */}
+            {analysisResult?.status === 'completed' && (
+              <section>
+                <h2 className="text-3xl font-bold mb-6 border-b border-gray-700 pb-4">Export Report</h2>
+                <ReportDownloadButtons analysisId={analysisResult.analysisId} />
+              </section>
+            )}
+
             <section>
               <h2 className="text-3xl font-bold mb-6 border-b border-gray-700 pb-4">Analysis Results</h2>
               <ForensicAnalysisDashboard analysisResult={analysisResult} />
@@ -198,7 +207,7 @@ function AnalysisPage() {
               <h2 className="text-3xl font-bold mb-6 border-b border-gray-700 pb-4">
                 🤖 Forensic RAG Assistant
               </h2>
-              <ForensicRagChat />
+              <ForensicRagChat analysisReady={analysisResult?.status === 'completed'} />
             </section>
           </div>
         </div>
@@ -222,7 +231,7 @@ function AnalysisPage() {
                   {/* Dashboard */}
                   <ForensicAnalysisDashboard analysisResult={analysisResult} />
                   {/* Download buttons */}
-                  <ReportDownloadButtons />
+                  <ReportDownloadButtons analysisId={analysisResult.analysisId} />
                 </div>
               ) : (
                 <div className="text-center py-16 text-gray-500">
@@ -240,46 +249,65 @@ function AnalysisPage() {
 }
 
 // ── Report Download Buttons ──────────────────────────────────────────────────
-function ReportDownloadButtons() {
-  const [isDownloading, setIsDownloading] = useState(false);
+function ReportDownloadButtons({ analysisId }: { analysisId?: string }) {
+  const [downloading, setDownloading] = useState<'pdf' | 'docx' | null>(null);
+  const [dlError, setDlError] = useState<string | null>(null);
 
   const handleDownload = async (format: 'pdf' | 'docx') => {
-    setIsDownloading(true);
+    setDownloading(format);
+    setDlError(null);
     try {
-      const response = await fetch(`http://localhost:5000/api/export/${format}`);
-      if (!response.ok) throw new Error('Download failed');
+      const response = await fetch(`http://localhost:5001/api/export/${format}`);
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || `Export failed (${response.status})`);
+      }
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `forensic_report.${format === 'pdf' ? 'pdf' : 'docx'}`;
+      a.download = `forensic_report_${analysisId || 'report'}.${format === 'pdf' ? 'pdf' : 'docx'}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Download failed');
+      setDlError(e instanceof Error ? e.message : 'Download failed');
     } finally {
-      setIsDownloading(false);
+      setDownloading(null);
     }
   };
 
   return (
-    <div className="flex gap-4 justify-center">
-      <button
-        onClick={() => handleDownload('pdf')}
-        disabled={isDownloading}
-        className="px-6 py-3 rounded-lg bg-red-900/60 hover:bg-red-800 border border-red-700 text-white font-semibold text-sm transition-all disabled:opacity-50"
-      >
-        📄 Download PDF Report
-      </button>
-      <button
-        onClick={() => handleDownload('docx')}
-        disabled={isDownloading}
-        className="px-6 py-3 rounded-lg bg-red-900/60 hover:bg-red-800 border border-red-700 text-white font-semibold text-sm transition-all disabled:opacity-50"
-      >
-        📝 Download DOCX Report
-      </button>
+    <div className="bg-black/40 border border-gray-700 rounded-xl p-6">
+      <p className="text-xs text-gray-500 tracking-widest uppercase mb-5">Choose export format</p>
+      <div className="flex flex-wrap gap-4">
+        <button
+          onClick={() => handleDownload('pdf')}
+          disabled={downloading !== null}
+          className="flex items-center gap-3 px-6 py-4 rounded-lg bg-red-900/50 hover:bg-red-800/70 border border-red-700/60 hover:border-red-500 text-white font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed min-w-[180px] justify-center"
+        >
+          {downloading === 'pdf' ? (
+            <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>Generating PDF…</span></>
+          ) : (
+            <><span className="text-xl">📄</span><span>Download PDF</span></>
+          )}
+        </button>
+        <button
+          onClick={() => handleDownload('docx')}
+          disabled={downloading !== null}
+          className="flex items-center gap-3 px-6 py-4 rounded-lg bg-gray-800/70 hover:bg-gray-700/70 border border-gray-600/60 hover:border-gray-400 text-white font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed min-w-[180px] justify-center"
+        >
+          {downloading === 'docx' ? (
+            <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /><span>Generating DOCX…</span></>
+          ) : (
+            <><span className="text-xl">📝</span><span>Download DOCX</span></>
+          )}
+        </button>
+      </div>
+      {dlError && (
+        <p className="mt-3 text-red-400 text-xs">⚠ {dlError}</p>
+      )}
     </div>
   );
 }

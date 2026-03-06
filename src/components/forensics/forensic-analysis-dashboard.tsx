@@ -40,7 +40,7 @@ export const ForensicAnalysisDashboard: React.FC<ForensicAnalysisDashboardProps>
     if (!analysisResult || analysisResult.status !== 'completed') return;
     (async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/results');
+        const res = await fetch('http://localhost:5001/api/results');
         if (!res.ok) return;
         const data = await res.json();
         setDetailedResults(data);
@@ -96,7 +96,7 @@ export const ForensicAnalysisDashboard: React.FC<ForensicAnalysisDashboardProps>
 
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/analysis/${selectedAnalysis.id}/status`);
+        const response = await fetch(`http://localhost:5001/api/analysis/${selectedAnalysis.id}/status`);
         if (!response.ok) throw new Error('Failed to fetch status');
 
         const data = await response.json();

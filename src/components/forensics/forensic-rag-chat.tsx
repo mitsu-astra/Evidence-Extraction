@@ -10,8 +10,12 @@ interface Message {
   sources?: { text: string; source: string }[];
 }
 
+interface ForensicRagChatProps {
+  analysisReady?: boolean;
+}
+
 /* ── Component ─────────────────────────────────────────────────────────────── */
-const ForensicRagChat: React.FC = () => {
+const ForensicRagChat: React.FC<ForensicRagChatProps> = ({ analysisReady = false }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -40,7 +44,7 @@ const ForensicRagChat: React.FC = () => {
     let intervalId: ReturnType<typeof setInterval> | null = null;
     const check = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/rag/status');
+        const res = await fetch('http://localhost:5001/api/rag/status');
         if (!res.ok) return;
         const data = await res.json();
         if (!cancelled) {
@@ -79,7 +83,7 @@ const ForensicRagChat: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const res = await fetch('http://localhost:5000/api/rag/chat', {
+      const res = await fetch('http://localhost:5001/api/rag/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, top_k: 5, use_llm: true }),
@@ -142,16 +146,39 @@ const ForensicRagChat: React.FC = () => {
     return <span dangerouslySetInnerHTML={{ __html: html }} />;
   };
 
+  /* ── Locked state when no analysis has been run ─────────────────────── */
+  if (!analysisReady) {
+    return (
+      <div className="flex flex-col h-[75vh] rounded-xl overflow-hidden border border-gray-700/60 bg-black/40 backdrop-blur-md items-center justify-center gap-6">
+        <div className="flex flex-col items-center gap-4 px-8 text-center">
+          <div className="w-16 h-16 rounded-full bg-gray-800/80 border border-gray-700 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-bold tracking-widest uppercase text-gray-300">RAG Assistant Locked</h3>
+          <p className="text-sm text-gray-500 max-w-xs">
+            Upload and analyze a forensic disk image first. The assistant will unlock once the analysis and vectorization are complete.
+          </p>
+          <div className="mt-2 flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-900/30 border border-yellow-800/40">
+            <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+            <span className="text-xs text-yellow-400 tracking-wider uppercase">Awaiting analysis…</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-[75vh] rounded-xl overflow-hidden border border-gray-700/60 bg-black/40 backdrop-blur-md">
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-700/60 bg-black/30">
-        <div className={cn('w-2.5 h-2.5 rounded-full', ragReady ? 'bg-green-500 animate-pulse' : 'bg-yellow-500')} />
+        <div className={cn('w-2.5 h-2.5 rounded-full', ragReady ? 'bg-green-500 animate-pulse' : 'bg-yellow-500 animate-pulse')} />
         <h3 className="text-sm font-bold tracking-widest uppercase text-gray-200">
           Forensic RAG Assistant
         </h3>
         <span className="ml-auto text-[10px] tracking-wider text-gray-500 uppercase">
-          {ragReady ? 'Ready — ChromaDB connected' : 'Waiting for analysis…'}
+          {ragReady ? 'Ready — Evidence indexed' : 'Indexing evidence…'}
         </span>
       </div>
 
@@ -233,7 +260,7 @@ const ForensicRagChat: React.FC = () => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={ragReady ? 'Ask about the forensic report…' : 'Upload & analyze a file first…'}
+          placeholder={ragReady ? 'Ask about the forensic report…' : 'Indexing evidence, please wait…'}
           disabled={!ragReady || isLoading}
           className="flex-1 bg-gray-800/60 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-red-700 transition-colors disabled:opacity-40"
         />
