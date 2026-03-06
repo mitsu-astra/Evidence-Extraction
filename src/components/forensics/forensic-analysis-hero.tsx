@@ -271,7 +271,7 @@ const ForensicAnalysisHero: React.FC<ForensicAnalysisHeroProps> = ({ onBeginAnal
               e.stopPropagation();
               onBeginAnalysis?.();
             }}>
-              BEGIN ANALYSIS
+              LOGIN
               <span className="forensic-drip" style={{ left: '22%', width: '4px', height: '17px' }}></span>
               <span className="forensic-drip" style={{ left: '36%', width: '5px', height: '23px' }}></span>
               <span className="forensic-drip" style={{ left: '51%', width: '3px', height: '14px' }}></span>
