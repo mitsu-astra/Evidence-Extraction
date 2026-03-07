@@ -272,6 +272,10 @@ def _build_report_data_summary(data):
 
 def _pdf_page_footer(canvas_obj, doc_obj):
     """Draw page number and thin header line on every page (except cover)."""
+    # Import required objects
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
     page_num = canvas_obj.getPageNumber()
     if page_num == 1:  # skip cover page
         return
@@ -1131,12 +1135,16 @@ def rag_chat():
         use_llm = bool(data.get('use_llm', True))
 
         result = _rag_ask(collection_name, query, top_k=top_k, use_llm=use_llm)
+        generated_by = result.get('generated_by', 'unknown')
+        source_labels = {'llama3': '🤖 Llama 3 AI', 'fallback': '📄 Fallback Python', 'chat': '👋 Chat', 'unknown': '? Unknown'}
+        print(f"[RAG] Query: '{query[:60]}' → Source: {source_labels.get(generated_by, generated_by)}")
         return jsonify({
             'success': True,
             'answer': result['answer'],
             'context': result['context'],
             'collection': result['collection'],
             'rejected': result.get('rejected', False),
+            'generated_by': generated_by,
         })
     except Exception as e:
         import traceback; traceback.print_exc()

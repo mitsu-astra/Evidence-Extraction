@@ -676,63 +676,23 @@ def retrieve_context(
 # ══════════════════════════════════════════════════════════════════════════════
 
 SYSTEM_PROMPT = """\
-You are a digital forensics assistant. You are STRICTLY LIMITED to answering \
-questions about the forensic disk-image analysis report provided in the context below.
+You are a digital forensics assistant. The context below contains real data \
+extracted from a forensic disk image analysis.
 
-CRITICAL RULES — NEVER VIOLATE THESE:
-1. ONLY use the context chunks provided below to form your answer. NEVER use \
-   your own knowledge, training data, or any external information.
-2. If the user's question is NOT about the forensic report, uploaded file, \
-   disk image analysis, files, hashes, timeline, artifacts, or evidence, \
-   you MUST respond EXACTLY with:
-   "🚫 I can only answer questions related to the uploaded forensic evidence. \
-Please ask about the analysis report, files, timeline, or artifacts."
-3. NEVER answer general knowledge, coding, math, trivia, jokes, greetings, \
-   or any question unrelated to the forensic data.
-4. If the question IS relevant to forensics but the answer is not found in \
-   the context, say: "I don't have enough data in the current report to answer that."
-5. Be precise: cite file names, paths, timestamps, and hashes when available.
-6. Use bullet points and keep answers concise.
-7. If someone asks "who are you" or "what can you do", respond ONLY with:
-   "I am a forensic evidence assistant. I can answer questions about the \
-uploaded forensic disk image analysis — files, hashes, timeline, deleted items, \
-encrypted data, network artifacts, and more."
+RULES:
+1. Answer ONLY from the context provided. Do NOT use your own training knowledge.
+2. If the answer is present in the context, give a clear, precise answer with \
+   file names, paths, timestamps, and hashes where available.
+3. If the answer is NOT found in the context, say exactly: \
+   "That information is not available in the current forensic report."
+4. Use bullet points and keep answers concise.
+5. If asked who you are, respond: "I am a forensic evidence assistant. I answer \
+questions about the uploaded disk image — files, hashes, timeline, deleted items, \
+encrypted data, and network artifacts."
 """
 
-# ── Keywords that indicate a forensic-relevant query ──────────────────────────
-_FORENSIC_KEYWORDS = {
-    "file", "files", "deleted", "suspicious", "malware", "hash", "sha256",
-    "md5", "encrypted", "encryption", "network", "artifact", "timeline",
-    "partition", "filesystem", "disk", "image", "inode", "directory",
-    "extension", "exe", "dll", "bat", "report", "summary", "overview",
-    "evidence", "forensic", "analysis", "scan", "size", "path", "folder",
-    "created", "modified", "accessed", "timestamp", "date", "time",
-    "block", "volume", "sector", "cluster", "ntfs", "fat", "ext4",
-    "threat", "dangerous", "trojan", "virus", "ransomware", "hidden",
-    "recovered", "carved", "exfiltrat", "ip", "dns", "hosts", "url",
-    "connection", "browser", "history", "registry", "log", "event",
-    "count", "total", "how many", "list", "show", "what", "which",
-    "tell me", "describe", "explain", "detail", "uploaded", "scanned",
-}
-
-_IRRELEVANT_RESPONSE = (
-    "🚫 I can only answer questions related to the uploaded forensic evidence "
-    "files. Please ask something about the analysis report — for example:\n\n"
-    "• *What suspicious files were found?*\n"
-    "• *Show me the timeline of events*\n"
-    "• *Are there any deleted files?*\n"
-    "• *List encrypted items*\n"
-    "• *Give me a summary of the report*"
-)
-
-# ── Patterns that are clearly NOT forensic questions ──────────────────────────
-_IRRELEVANT_PATTERNS = {
-    "what is python", "write code", "write a program", "capital of",
-    "president of", "weather", "recipe", "song", "movie", "play",
-    "calculate", "solve", "math", "translate", "meaning of life",
-    "what is ai", "what is machine learning", "write an essay",
-    "poem", "story", "sing", "draw", "paint", "game",
-}
+# (Keyword-based relevance filtering removed — vector similarity handles this)
+# Retrieval distance threshold in retrieve_context() acts as the relevance gate.
 
 # ── Conversational / small-talk classifier ────────────────────────────────────
 _CHAT_RESPONSES: List[tuple] = [
@@ -823,43 +783,12 @@ def _classify_chat(query: str) -> Optional[str]:
     return None
 
 
-def _is_relevant_query(query: str) -> bool:
-    """
-    Check whether a user query is related to the forensic report.
-    Returns True if it looks forensic-relevant, False otherwise.
-    Uses a two-pass approach: first reject obvious off-topic queries,
-    then check for forensic keywords.
-    """
-    q = query.lower().strip()
-
-    # Pass 1: reject obvious irrelevant / casual chat
-    for pattern in _IRRELEVANT_PATTERNS:
-        if q == pattern or q.startswith(pattern + " ") or q.startswith(pattern + "?") or q.startswith(pattern + ","):
-            return False
-
-    # Pass 2: direct forensic keyword match
-    for kw in _FORENSIC_KEYWORDS:
-        if kw in q:
-            return True
-
-    # Pass 3: very short queries (< 3 words) that don't match any keyword → irrelevant
-    if len(q.split()) < 3:
-        return False
-
-    # Pass 4: if the query mentions data-like terms
-    if any(w in q for w in ["the", "this", "report", "upload", "drive", "found", "detect"]):
-        return True
-
-    return False
-
-
 def build_llm_prompt(query: str, context_chunks: List[Dict[str, Any]]) -> str:
     """
-    Format the retrieved chunks + user question into a prompt suitable for
-    Llama 3 (or any instruct-tuned model).
+    Format retrieved chunks + question into a Llama 3 prompt.
+    Context is pre-filtered by vector similarity — only relevant chunks reach here.
     """
     context_block = "\n\n---\n\n".join(c["text"] for c in context_chunks)
-
     prompt = (
         f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
         f"{SYSTEM_PROMPT}<|eot_id|>"
@@ -988,13 +917,14 @@ def ask(
     use_llm: bool = True,
 ) -> Dict[str, Any]:
     """
-    End-to-end pipeline that handles ALL inputs gracefully — like a real LLM.
+    End-to-end RAG pipeline.
+    Relevance is determined purely by vector similarity (cosine distance threshold).
     1. Greetings / small-talk  → friendly canned reply (fuzzy-matched, typos OK).
-    2. Forensic queries        → RAG retrieval → LLM answer (or rule-based fallback).
-    3. Anything else           → try retrieval; if nothing found, suggest what to ask.
-    No query is ever hard-blocked — every input gets a useful response.
+    2. Any other query         → retrieve context from vector store.
+       - Chunks found          → Llama 3 answers from context (fallback if LLM down).
+       - No chunks found       → politely say the report has no matching data.
     """
-    # ── Step 1: greetings / small-talk (handles typos via fuzzy matching) ─────
+    # ── Step 1: small-talk (greetings, thanks, who are you, etc.) ─────────────
     chat_reply = _classify_chat(query)
     if chat_reply is not None:
         return {
@@ -1003,66 +933,47 @@ def ask(
             "context": [],
             "collection": collection_name,
             "rejected": False,
+            "generated_by": "chat",
         }
 
-    # ── Step 2: retrieve forensic context (best-effort for any input) ────────
+    # ── Step 2: retrieve — vector similarity is the relevance gate ────────────
     try:
         context_chunks = retrieve_context(collection_name, query, top_k=top_k)
     except (ValueError, KeyError):
         context_chunks = []
 
-    # ── Step 3: no relevant context found ──────────────────────────────────
+    # ── Step 3: no similar chunks found → not in the report ───────────────────
     if not context_chunks:
-        # Try LLM for a conversational response even without forensic context
-        if use_llm:
-            general_prompt = (
-                f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n"
-                f"You are a friendly forensic evidence assistant. The user sent a "
-                f"message that does not match anything in the forensic report. "
-                f"Respond helpfully: if it looks like a greeting or casual message, "
-                f"reply warmly and tell them what topics you can help with "
-                f"(forensic files, timeline, deleted items, encrypted data, "
-                f"network artifacts, hashes). If it seems like a forensic question "
-                f"that just didn't match, ask them to rephrase. Keep it concise."
-                f"<|eot_id|>"
-                f"<|start_header_id|>user<|end_header_id|>\n\n{query}<|eot_id|>"
-                f"<|start_header_id|>assistant<|end_header_id|>\n\n"
-            )
-            llm_answer = _call_ollama(general_prompt)
-            if llm_answer:
-                return {
-                    "answer": llm_answer,
-                    "prompt": general_prompt,
-                    "context": [],
-                    "collection": collection_name,
-                    "rejected": False,
-                }
-        # Rule-based fallback — always give a helpful nudge
         return {
             "answer": (
-                "I couldn't find anything in the forensic report matching your query. "
-                "Here are some things you can ask me:\n\n"
-                "• *What suspicious files were found?*\n"
-                "• *Are there any deleted files?*\n"
-                "• *Show me the timeline of events*\n"
-                "• *List encrypted or network artifacts*\n"
-                "• *Give me a summary of the report*"
+                "That information is not available in the current forensic report.\n\n"
+                "You can ask me about:\n"
+                "• Suspicious or deleted files\n"
+                "• Timeline of events\n"
+                "• Encrypted items or network artifacts\n"
+                "• File hashes, paths, sizes, and timestamps\n"
+                "• Summary or overview of the disk image"
             ),
             "prompt": "",
             "context": [],
             "collection": collection_name,
             "rejected": False,
+            "generated_by": "fallback",
         }
 
-    # ── Step 4: build prompt and generate answer ───────────────────────────
+    # ── Step 4: relevant context found → generate answer ──────────────────────
     prompt = build_llm_prompt(query, context_chunks)
 
     answer = None
+    generated_by = "fallback"
     if use_llm:
         answer = _call_ollama(prompt, model="llama3")
+        if answer is not None:
+            generated_by = "llama3"
 
     if answer is None:
         answer = generate_fallback_answer(query, context_chunks)
+        generated_by = "fallback"
 
     return {
         "answer": answer,
@@ -1070,4 +981,5 @@ def ask(
         "context": [{"text": c["text"], "source": c["source"]} for c in context_chunks],
         "collection": collection_name,
         "rejected": False,
+        "generated_by": generated_by,
     }
