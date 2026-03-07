@@ -10,14 +10,28 @@ import os
 import re
 import uuid
 import hashlib
-import numpy as np
 import requests
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-import chromadb
-from chromadb.config import Settings
-from sentence_transformers import SentenceTransformer
+# Graceful imports with fallbacks
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
+    np = None  # type: ignore
+
+try:
+    import chromadb
+    from chromadb.config import Settings
+    from sentence_transformers import SentenceTransformer
+    HAS_RAG_DEPS = True
+except ImportError:
+    HAS_RAG_DEPS = False
+    chromadb = None  # type: ignore
+    Settings = None  # type: ignore
+    SentenceTransformer = None  # type: ignore
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -26,27 +40,31 @@ os.makedirs(CHROMA_DIR, exist_ok=True)
 
 # ── Embedding model (runs locally — no API key needed) ────────────────────────
 _EMBED_MODEL_NAME = "all-MiniLM-L6-v2"  # fast, 384-dim
-_embed_model: Optional[SentenceTransformer] = None
+_embed_model: Any = None
 
 
-def _get_embed_model() -> SentenceTransformer:
+def _get_embed_model():
     """Lazy-load the embedding model so import time stays fast."""
+    if not HAS_RAG_DEPS:
+        raise ImportError("RAG dependencies not installed. Run: pip install numpy sentence-transformers chromadb")
     global _embed_model
     if _embed_model is None:
         print(f"[RAG] Loading embedding model: {_EMBED_MODEL_NAME} …")
-        _embed_model = SentenceTransformer(_EMBED_MODEL_NAME)
+        _embed_model = SentenceTransformer(_EMBED_MODEL_NAME)  # type: ignore
         print("[RAG] Embedding model ready.")
     return _embed_model
 
 
 # ── ChromaDB client ───────────────────────────────────────────────────────────
-_chroma_client: Optional[chromadb.PersistentClient] = None
+_chroma_client = None
 
 
-def _get_chroma() -> chromadb.PersistentClient:
+def _get_chroma():
+    if not HAS_RAG_DEPS:
+        raise ImportError("ChromaDB not installed. Run: pip install chromadb")
     global _chroma_client
     if _chroma_client is None:
-        _chroma_client = chromadb.PersistentClient(path=CHROMA_DIR)
+        _chroma_client = chromadb.PersistentClient(path=CHROMA_DIR)  # type: ignore
     return _chroma_client
 
 
@@ -284,11 +302,12 @@ def chunk_forensic_report(report_json: Dict[str, Any]) -> List[Dict[str, str]]:
 
 
 def _human_size(nbytes: int) -> str:
+    size = float(nbytes)
     for unit in ("B", "KB", "MB", "GB", "TB"):
-        if abs(nbytes) < 1024:
-            return f"{nbytes:.1f} {unit}"
-        nbytes /= 1024
-    return f"{nbytes:.1f} PB"
+        if abs(size) < 1024:
+            return f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} PB"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -442,7 +461,7 @@ def _compress_context(
     chunks: List[Dict[str, Any]],
     top_n_sentences: int = 8,
     similarity_threshold: float = 0.25,
-    query_vec: Optional[np.ndarray] = None,
+    query_vec = None,
 ) -> List[Dict[str, Any]]:
     """
     Context Compression (Step 5).
@@ -453,6 +472,10 @@ def _compress_context(
     (saves one embedding call per request).
     """
     if not chunks:
+        return chunks
+
+    # Skip compression if numpy is not available
+    if not HAS_NUMPY:
         return chunks
 
     # Skip compression for very small result sets — not worth the overhead
@@ -486,20 +509,20 @@ def _compress_context(
     sent_vecs = model.encode(sent_texts, show_progress_bar=False)
 
     # Vectorised cosine similarity using numpy (much faster than a Python loop)
-    query_norm = np.linalg.norm(query_vec)
+    query_norm = np.linalg.norm(query_vec)  # type: ignore
     if query_norm == 0:
         return chunks
 
-    sent_norms = np.linalg.norm(sent_vecs, axis=1) + 1e-9
-    similarities = np.dot(sent_vecs, query_vec) / (sent_norms * query_norm)
+    sent_norms = np.linalg.norm(sent_vecs, axis=1) + 1e-9  # type: ignore
+    similarities = np.dot(sent_vecs, query_vec) / (sent_norms * query_norm)  # type: ignore
 
     # Filter + sort in one pass using numpy
     mask = similarities >= similarity_threshold
-    if not np.any(mask):
+    if not np.any(mask):  # type: ignore
         return chunks  # threshold too strict → return originals
 
-    indices = np.where(mask)[0]
-    top_indices = indices[np.argsort(similarities[indices])[::-1]][:top_n_sentences]
+    indices = np.where(mask)[0]  # type: ignore
+    top_indices = indices[np.argsort(similarities[indices])[::-1]][:top_n_sentences]  # type: ignore
 
     # Repack into a single compressed chunk per unique source
     source_groups: Dict[str, List[str]] = {}

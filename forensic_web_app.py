@@ -17,6 +17,8 @@ from forensic_pipeline_advanced import AdvancedForensicAnalyzer, HAS_PYTSK3, HAS
 import re
 # NOTE: reportlab + docx are imported lazily inside export functions to speed up startup
 # NOTE: rag_engine is imported lazily below (on first RAG use) to avoid slow startup time
+import supabase_client
+import kmit_auth  # Custom KMIT authentication
 
 app = Flask(__name__)
 app.secret_key = 'forensic-analysis-secret-key-2026'
@@ -185,6 +187,22 @@ def run_forensic_analysis(image_path, analysis_id):
             'data': json_data,
             'rag_collection': analysis_status['rag_collection']
         }
+        
+        # Save to Supabase if configured
+        if supabase_client.is_configured():
+            try:
+                with open(summary_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    summary_text = f.read()
+                supabase_client.save_analysis_report(
+                    analysis_id=analysis_id,
+                    image_name=os.path.basename(image_path),
+                    report_data=json_data,
+                    summary=summary_text,
+                    user_id=None  # Add user authentication later
+                )
+                print(f'[+] Saved analysis to Supabase: {analysis_id}')
+            except Exception as sup_err:
+                print(f'[!] Supabase save warning: {sup_err}')
         
         analysis_status['progress'] = 100
         analysis_status['status'] = 'completed'
@@ -1107,6 +1125,59 @@ def reset_analysis():
 # RAG CHATBOT ENDPOINTS
 # ============================================================================
 
+@app.route('/api/rag/load-report', methods=['POST'])
+def load_existing_report():
+    """Load and vectorize an existing forensic report for RAG queries."""
+    global analysis_status
+    try:
+        data = request.json
+        report_path = data.get('report_path', '')
+        
+        # If no path provided, try to find the most recent report
+        if not report_path:
+            report_files = list(Path(BASE_DIR).glob('forensic_report*.json'))
+            if not report_files:
+                return jsonify({'error': 'No forensic reports found'}), 404
+            # Get the most recently modified report
+            report_path = str(max(report_files, key=lambda p: p.stat().st_mtime))
+        
+        if not os.path.exists(report_path):
+            return jsonify({'error': f'Report not found: {report_path}'}), 404
+        
+        # Load the report
+        with open(report_path, 'r', encoding='utf-8') as f:
+            json_data = json.load(f)
+        
+        # Extract analysis ID from the report or filename
+        analysis_id = json_data.get('analysis_id') or Path(report_path).stem
+        
+        # Vectorize the report
+        _ensure_rag_loaded()
+        collection_name = _vectorize_and_store(analysis_id, json_data)
+        analysis_status['rag_collection'] = collection_name
+        
+        # Update status with loaded report
+        analysis_status['results'] = {
+            'json_path': report_path,
+            'analysis_id': analysis_id,
+            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'data': json_data,
+            'rag_collection': collection_name
+        }
+        
+        return jsonify({
+            'success': True,
+            'message': f'Report loaded and vectorized: {Path(report_path).name}',
+            'collection': collection_name,
+            'analysis_id': analysis_id
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/rag/chat', methods=['POST'])
 def rag_chat():
     """Answer a user question using RAG over the vectorized forensic report."""
@@ -1131,6 +1202,21 @@ def rag_chat():
         use_llm = bool(data.get('use_llm', True))
 
         result = _rag_ask(collection_name, query, top_k=top_k, use_llm=use_llm)
+        
+        # Save RAG query to Supabase if configured
+        if supabase_client.is_configured():
+            try:
+                analysis_id = (analysis_status.get('results') or {}).get('analysis_id')
+                if analysis_id:
+                    supabase_client.save_rag_query(
+                        analysis_id=analysis_id,
+                        query=query,
+                        response=result['answer'],
+                        chunks_used=len(result.get('context', []))
+                    )
+            except Exception as sup_err:
+                print(f'[!] Supabase RAG logging warning: {sup_err}')
+        
         return jsonify({
             'success': True,
             'answer': result['answer'],
@@ -1157,6 +1243,100 @@ def rag_status():
     })
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+#  SUPABASE API ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.route('/api/supabase/status', methods=['GET'])
+def supabase_status():
+    """Check if Supabase is configured and connected."""
+    try:
+        is_configured = supabase_client.is_configured()
+        if is_configured:
+            # Test connection
+            supabase_client.get_supabase_client()
+            return jsonify({
+                'configured': True,
+                'connected': True,
+                'message': 'Supabase is connected and ready'
+            })
+        else:
+            return jsonify({
+                'configured': False,
+                'connected': False,
+                'message': 'Supabase not configured. Please update .env file.'
+            })
+    except Exception as e:
+        return jsonify({
+            'configured': supabase_client.is_configured(),
+            'connected': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/supabase/reports', methods=['GET'])
+def list_saved_reports():
+    """List all saved forensic reports from Supabase."""
+    try:
+        if not supabase_client.is_configured():
+            return jsonify({'error': 'Supabase not configured'}), 500
+        
+        limit = request.args.get('limit', 50, type=int)
+        user_id = request.args.get('user_id', None)
+        
+        reports = supabase_client.list_analysis_reports(limit=limit, user_id=user_id)
+        return jsonify({
+            'success': True,
+            'reports': reports,
+            'count': len(reports)
+        })
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/supabase/reports/<analysis_id>', methods=['GET'])
+def get_saved_report(analysis_id):
+    """Retrieve a specific forensic report from Supabase."""
+    try:
+        if not supabase_client.is_configured():
+            return jsonify({'error': 'Supabase not configured'}), 500
+        
+        report = supabase_client.get_analysis_report(analysis_id)
+        if report:
+            return jsonify({
+                'success': True,
+                'report': report
+            })
+        else:
+            return jsonify({'error': 'Report not found'}), 404
+            
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/supabase/reports/<analysis_id>', methods=['DELETE'])
+def delete_saved_report(analysis_id):
+    """Delete a forensic report from Supabase."""
+    try:
+        if not supabase_client.is_configured():
+            return jsonify({'error': 'Supabase not configured'}), 500
+        
+        success = supabase_client.delete_analysis_report(analysis_id)
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'Report {analysis_id} deleted successfully'
+            })
+        else:
+            return jsonify({'error': 'Failed to delete report'}), 500
+            
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 def _warmup_models():
     """Pre-load the embedding model in a background thread so the first
     analysis / RAG query doesn't pay a cold-start penalty."""
@@ -1167,6 +1347,179 @@ def _warmup_models():
         print("[+] Embedding model pre-warmed successfully.")
     except Exception as e:
         print(f"[!] Model warmup warning (non-fatal): {e}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  KMIT CUSTOM AUTHENTICATION API
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.route('/api/auth/signup', methods=['POST'])
+def kmit_signup():
+    """
+    New user signup with KMIT email validation.
+    
+    Request body:
+    {
+        "email": "student@kmit.edu.in",
+        "full_name": "John Doe" (optional),
+        "department": "CSE" (optional)
+    }
+    
+    Response:
+    {
+        "success": true,
+        "uid": "KMIT123456",
+        "email": "student@kmit.edu.in",
+        "password": "ABC12de@",
+        "message": "Account created successfully"
+    }
+    """
+    try:
+        data = request.get_json()
+        email = (data.get('email') or '').strip()
+        full_name = (data.get('full_name') or '').strip() or None
+        department = (data.get('department') or '').strip() or None
+        
+        if not email:
+            return jsonify({
+                'success': False,
+                'error': 'Email is required'
+            }), 400
+        
+        result = kmit_auth.signup_new_user(
+            email=email,
+            full_name=full_name if full_name else None,
+            department=department if department else None
+        )
+        
+        if result['success']:
+            return jsonify(result), 201
+        else:
+            return jsonify(result), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/auth/login', methods=['POST'])
+def kmit_login():
+    """
+    Existing user login with UID.
+    
+    Request body:
+    {
+        "uid": "KMIT123456"
+    }
+    
+    Response:
+    {
+        "success": true,
+        "uid": "KMIT123456",
+        "email": "student@kmit.edu.in",
+        "password": "ABC12de@",
+        "full_name": "John Doe",
+        "message": "Login successful"
+    }
+    """
+    try:
+        data = request.get_json()
+        uid = data.get('uid', '').strip().upper()
+        
+        if not uid:
+            return jsonify({
+                'success': False,
+                'error': 'UID is required'
+            }), 400
+        
+        result = kmit_auth.login_existing_user(uid)
+        
+        if result['success']:
+            # Store UID in session for API authentication
+            session['uid'] = uid
+            session['email'] = result['email']
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 401
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/auth/verify', methods=['POST'])
+def kmit_verify_password():
+    """
+    Verify a password for debugging/testing.
+    
+    Request body:
+    {
+        "uid": "KMIT123456",
+        "password": "ABC12de@"
+    }
+    
+    Response:
+    {
+        "valid": true
+    }
+    """
+    try:
+        data = request.get_json()
+        uid = data.get('uid', '').strip().upper()
+        password = data.get('password', '').strip()
+        
+        if not uid or not password:
+            return jsonify({'valid': False, 'error': 'UID and password required'}), 400
+        
+        is_valid = kmit_auth.verify_password(uid, password)
+        return jsonify({'valid': is_valid}), 200
+        
+    except Exception as e:
+        return jsonify({'valid': False, 'error': str(e)}), 500
+
+
+@app.route('/api/auth/me', methods=['GET'])
+def kmit_get_current_user():
+    """
+    Get current logged-in user details from session.
+    
+    Response:
+    {
+        "uid": "KMIT123456",
+        "email": "student@kmit.edu.in",
+        "full_name": "John Doe",
+        "logged_in": true
+    }
+    """
+    uid = session.get('uid')
+    
+    if not uid:
+        return jsonify({'logged_in': False}), 401
+    
+    user = kmit_auth.get_user_by_uid(uid)
+    
+    if user:
+        return jsonify({
+            'logged_in': True,
+            'uid': user['uid'],
+            'email': user['email'],
+            'full_name': user.get('full_name'),
+            'department': user.get('department')
+        }), 200
+    else:
+        session.clear()
+        return jsonify({'logged_in': False}), 401
+
+
+@app.route('/api/auth/logout', methods=['POST'])
+def kmit_logout():
+    """Logout current user by clearing session."""
+    session.clear()
+    return jsonify({'success': True, 'message': 'Logged out successfully'}), 200
 
 
 if __name__ == '__main__':

@@ -11,6 +11,8 @@
     "add": "shadcn-ui add"
   },
   "dependencies": {
+    "@radix-ui/react-label": "^2.1.8",
+    "@supabase/supabase-js": "^2.98.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.34.3",
     "lucide-react": "^0.575.0",
